@@ -146,18 +146,17 @@ def lookup_stat(stat, json):
 def configure_callback(conf):
     """Received configuration information"""
     global MESOS_HOST, MESOS_PORT, MESOS_URL, VERBOSE_LOGGING, STATS_CUR
-    if len(conf) > 0:
-        for node in conf.children:
-            if node.key == 'Host':
-                MESOS_HOST = node.values[0]
-            elif node.key == 'Port':
-                MESOS_PORT = int(node.values[0])
-            elif node.key == 'Verbose':
-                VERBOSE_LOGGING = bool(node.values[0])
-            elif node.key == "Version":
-                MESIS_VERSION = node.values[0]
-            else:
-                collectd.warning('mesos plugin: Unknown config key: %s.' % node.key)
+    for node in conf.children:
+        if node.key == 'Host':
+            MESOS_HOST = node.values[0]
+        elif node.key == 'Port':
+            MESOS_PORT = int(node.values[0])
+        elif node.key == 'Verbose':
+            VERBOSE_LOGGING = bool(node.values[0])
+        elif node.key == "Version":
+            MESIS_VERSION = node.values[0]
+        else:
+            collectd.warning('mesos plugin: Unknown config key: %s.' % node.key)
 
     MESOS_URL = "http://" + MESOS_HOST + ":" + str(MESOS_PORT) + "/stats.json"
     STATS_CUR = dict(STATS_MESOS.items())
