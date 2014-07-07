@@ -31,40 +31,15 @@ STATS_CUR = {}
 
 # DICT: Mesos 0.19.0
 STATS_MESOS = {
-    # General
-    'activated_slaves': Stat("gauge", "activated_slaves"),
-    'active_schedulers': Stat("gauge", "active_schedulers"),
-    'active_tasks_gauge': Stat("gauge", "active_tasks_gauge"),
-    'cpus_percent': Stat("gauge", "cpus_percent"),
-    'cpus_total': Stat("gauge", "cpus_total"),
-    'cpus_used': Stat("gauge", "cpus_used"),
-    'deactivated_slaves': Stat("gauge", "deactivated_slaves"),
-    'disk_percent': Stat("gauge", "disk_percent"),
-    'disk_total_in_mb': Stat("gauge", "disk_total"),
-    'disk_used_in_mb': Stat("gauge", "disk_used"),
-    'elected': Stat("gauge", "elected"),
-    'failed_tasks': Stat("gauge", "failed_tasks"),
-    'finished_tasks': Stat("gauge", "finished_tasks"),
-    'invalid_status_updates': Stat("gauge", "invalid_status_updates"),
-    'killed_tasks': Stat("gauge", "killed_tasks"),
-    'mem_percent': Stat("gauge", "mem_percent"),
-    'mem_total_in_mb': Stat("gauge", "mem_total"),
-    'mem_used_in_mb': Stat("gauge", "mem_used"),
-    'outstanding_offers': Stat("gauge", "outstanding_offers"),
-    'staged_tasks': Stat("gauge", "staged_tasks"),
-    'started_tasks': Stat("gauge", "started_tasks"),
-    'total_schedulers': Stat("gauge", "total_schedulers"),
-    'uptime': Stat("counter", "uptime"),
-    'valid_status_updates': Stat("gauge", "valid_status_updates"),
-
     # Master
     'master/cpus_percent': Stat("gauge", "master/cpus_percent"),
     'master/cpus_total': Stat("gauge", "master/cpus_total"),
     'master/cpus_used': Stat("gauge", "master/cpus_used"),
     'master/disk_percent': Stat("gauge", "master/disk_percent"),
-    'master/disk_total_in_mb': Stat("gauge", "master/disk_total"),
-    'master/disk_used_in_mb': Stat("gauge", "master/disk_used"),
+    'master/disk_total': Stat("gauge", "master/disk_total"),
+    'master/disk_used': Stat("gauge", "master/disk_used"),
     'master/dropped_messages': Stat("counter", "master/dropped_messages"),
+    'master/elected': Stat("gauge", "master/elected"),
     'master/event_queue_size': Stat("gauge", "master/event_queue_size"),
     'master/frameworks_active': Stat("gauge", "master/frameworks_active"),
     'master/frameworks_inactive': Stat("gauge", "master/frameworks_inactive"),
@@ -72,8 +47,8 @@ STATS_MESOS = {
     'master/invalid_status_update_acknowledgements': Stat("gauge", "master/invalid_status_update_acknowledgements"),
     'master/invalid_status_updates': Stat("gauge", "master/invalid_status_updates"),
     'master/mem_percent': Stat("gauge", "master/mem_percent"),
-    'master/mem_total_in_mb': Stat("gauge", "master/mem_total"),
-    'master/mem_used_in_mb': Stat("gauge", "master/mem_used"),
+    'master/mem_total': Stat("gauge", "master/mem_total"),
+    'master/mem_used': Stat("gauge", "master/mem_used"),
     'master/messages_authenticate': Stat("gauge", "master/messages_authenticate"),
     'master/messages_deactivate_framework': Stat("gauge", "master/messages_deactivate_framework"),
     'master/messages_exited_executor': Stat("gauge", "master/messages_exited_executor"),
@@ -96,6 +71,7 @@ STATS_MESOS = {
     'master/slave_removals': Stat("gauge", "master/slave_removals"),
     'master/slave_reregistrations': Stat("gauge", "master/slave_reregistrations"),
     'master/slaves_active': Stat("gauge", "master/slaves_active"),
+    'master/slaves_inactive': Stat("gauge", "master/slaves_inactive"),
     'master/tasks_failed': Stat("gauge", "master/tasks_failed"),
     'master/tasks_finished': Stat("gauge", "master/tasks_finished"),
     'master/tasks_killed': Stat("gauge", "master/tasks_killed"),
@@ -111,18 +87,19 @@ STATS_MESOS = {
     # Registrar
     'registrar/queued_operations': Stat("gauge", "registrar/queued_operations"),
     'registrar/registry_size_bytes': Stat("bytes", "registrar/registry_size_bytes"),
-    'registrar/state_fetch_in_ms': Stat("gauge", "registrar/state_fetch_ms"),
-    'registrar/state_store_in_ms': Stat("gauge", "registrar/state_store_ms"),
-    'registrar/state_store_in_ms/count': Stat("gauge", "registrar/state_store_ms/count"),
-    'registrar/state_store_in_ms/max': Stat("gauge", "registrar/state_store_ms/max"),
-    'registrar/state_store_in_ms/min': Stat("gauge", "registrar/state_store_ms/min"),
-    'registrar/state_store_in_ms/p50': Stat("gauge", "registrar/state_store_ms/p50"),
-    'registrar/state_store_in_ms/p94': Stat("gauge", "registrar/state_store_ms/p95"),
-    'registrar/state_store_in_ms/p99': Stat("gauge", "registrar/state_store_ms/p99"),
-    'registrar/state_store_in_ms/p999': Stat("gauge", "registrar/state_store_ms/p999"),
-    'registrar/state_store_in_ms/p9999': Stat("gauge", "registrar/state_store_ms/p9999"),
+    'registrar/state_fetch_ms': Stat("gauge", "registrar/state_fetch_ms"),
+    'registrar/state_store_ms': Stat("gauge", "registrar/state_store_ms"),
+    'registrar/state_store_ms/count': Stat("gauge", "registrar/state_store_ms/count"),
+    'registrar/state_store_ms/max': Stat("gauge", "registrar/state_store_ms/max"),
+    'registrar/state_store_ms/min': Stat("gauge", "registrar/state_store_ms/min"),
+    'registrar/state_store_ms/p50': Stat("gauge", "registrar/state_store_ms/p50"),
+    'registrar/state_store_ms/p90': Stat("gauge", "registrar/state_store_ms/p90"),
+    'registrar/state_store_ms/p95': Stat("gauge", "registrar/state_store_ms/p95"),
+    'registrar/state_store_ms/p99': Stat("gauge", "registrar/state_store_ms/p99"),
+    'registrar/state_store_ms/p999': Stat("gauge", "registrar/state_store_ms/p999"),
+    'registrar/state_store_ms/p9999': Stat("gauge", "registrar/state_store_ms/p9999"),
 
-    # Master System Metrics
+    # Elected Master System Metrics
     'system/cpus_total': Stat("gauge", "system/cpus_total"),
     'system/load_15min': Stat("gauge", "system/load_15min"),
     'system/load_1min': Stat("gauge", "system/load_1min"),
@@ -154,11 +131,11 @@ def configure_callback(conf):
         elif node.key == 'Verbose':
             VERBOSE_LOGGING = bool(node.values[0])
         elif node.key == "Version":
-            MESIS_VERSION = node.values[0]
+            MESOS_VERSION = node.values[0]
         else:
             collectd.warning('mesos plugin: Unknown config key: %s.' % node.key)
 
-    MESOS_URL = "http://" + MESOS_HOST + ":" + str(MESOS_PORT) + "/stats.json"
+    MESOS_URL = "http://" + MESOS_HOST + ":" + str(MESOS_PORT) + "/metrics/snapshot"
     STATS_CUR = dict(STATS_MESOS.items())
 
     log_verbose('Configured with host=%s, port=%s, url=%s' % (MESOS_HOST, MESOS_PORT, MESOS_URL))
@@ -175,9 +152,14 @@ def fetch_stats():
 
 def parse_stats(json):
     """Parse stats response from Mesos"""
-    for name, key in STATS_CUR.iteritems():
-        result = lookup_stat(name, json)
-        dispatch_stat(result, name, key)
+    """Ignore stats if coming from non-leading mesos master"""
+    elected_result = lookup_stat('master/elected', json)
+    if elected_result == 1:
+        for name, key in STATS_CUR.iteritems():
+            result = lookup_stat(name, json)
+            dispatch_stat(result, name, key)
+    else:
+        return None
 
 
 def dispatch_stat(result, name, key):

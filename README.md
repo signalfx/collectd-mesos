@@ -1,7 +1,7 @@
 mesos-collectd-plugin
 =====================
 
-An [Apache Mesos](http://mesos.apache.org) plugin for [collectd](http://collectd.org) using collectd's [Python plugin](http://collectd.org/documentation/manpages/collectd-python.5.shtml).
+A [collectd](http://collectd.org) plugin for [Apache Mesos](http://mesos.apache.org) using collectd's [Python plugin](http://collectd.org/documentation/manpages/collectd-python.5.shtml).
 
 This plugin is based heavily on the [Elasticsearch Collectd Python plugin](https://github.com/phobos182/collectd-elasticsearch) written by [phobos182](https://github.com/phobos182).
 
