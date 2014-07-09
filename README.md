@@ -17,6 +17,8 @@ Install
  2. Configure the plugin (see below).
  3. Restart collectd.
 
+You can also install the plugin using this [Chef Cookbook](https://github.com/duedil-ltd/chef-collectd-mesos) if you're a Chef user.
+
 Configuration
 -------------
  * See mesos.conf
