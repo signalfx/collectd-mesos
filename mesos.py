@@ -1,5 +1,5 @@
 #! /usr/bin/python
-# Copyright 2014 Ray Rodriguez
+# Copyright 2015 Ray Rodriguez
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import collections
 PREFIX = "mesos"
 MESOS_HOST = "localhost"
 MESOS_PORT = 5050
+MESOS_VERSION = "0.21.0"
 MESOS_URL = ""
 VERBOSE_LOGGING = False
 
@@ -29,7 +30,7 @@ Stat = collections.namedtuple('Stat', ('type', 'path'))
 
 STATS_CUR = {}
 
-# DICT: Mesos 0.19.0
+# DICT: Common Metrics in 0.19.0, 0.20.0 and 0.21.0
 STATS_MESOS = {
     # Master
     'master/cpus_percent': Stat("gauge", "master/cpus_percent"),
@@ -40,7 +41,6 @@ STATS_MESOS = {
     'master/disk_used': Stat("gauge", "master/disk_used"),
     'master/dropped_messages': Stat("counter", "master/dropped_messages"),
     'master/elected': Stat("gauge", "master/elected"),
-    'master/event_queue_size': Stat("gauge", "master/event_queue_size"),
     'master/frameworks_active': Stat("gauge", "master/frameworks_active"),
     'master/frameworks_inactive': Stat("gauge", "master/frameworks_inactive"),
     'master/invalid_framework_to_executor_messages': Stat("gauge", "master/invalid_framework_to_executor_messages"),
@@ -108,6 +108,31 @@ STATS_MESOS = {
     'system/mem_total_bytes': Stat("bytes", "system/mem_total_bytes"),
 }
 
+# DICT: Mesos 0.19.0, 0.19.1
+STATS_MESOS_019 = {
+    'master/event_queue_size': Stat("gauge", "master/event_queue_size")
+}
+
+# DICT: Mesos 0.20.0, 0.20.1
+STATS_MESOS_020 = {
+    'master/event_queue_dispatches': Stat("gauge", "master/event_queue_dispatches"),
+    'master/event_queue_http_requests': Stat("gauge", "master/event_queue_http_requests"),
+    'master/event_queue_messages': Stat("gauge", "master/event_queue_messages"),
+    'master/messages_resource_request': Stat("gauge", "master/messages_resource_request")
+}
+
+# DICT: Mesos 0.21.0, 0.21.1
+STATS_MESOS_021 = {
+    'master/event_queue_dispatches': Stat("gauge", "master/event_queue_dispatches"),
+    'master/event_queue_http_requests': Stat("gauge", "master/event_queue_http_requests"),
+    'master/event_queue_messages': Stat("gauge", "master/event_queue_messages"),
+    'master/frameworks_connected': Stat("gauge", "master/frameworks_connected"),
+    'master/frameworks_disconnected': Stat("gauge", "master/frameworks_disconnected"),
+    'master/messages_resource_request': Stat("gauge", "master/messages_resource_request"),
+    'master/slaves_connected': Stat("gauge", "master/slaves_connected"),
+    'master/slaves_disconnected': Stat("gauge", "master/slaves_disconnected")
+}
+
 # FUNCTION: Collect stats from JSON result
 def lookup_stat(stat, json):
     val = dig_it_up(json, STATS_CUR[stat].path)
@@ -134,6 +159,15 @@ def configure_callback(conf):
             MESOS_VERSION = node.values[0]
         else:
             collectd.warning('mesos plugin: Unknown config key: %s.' % node.key)
+
+    if MESOS_VERSION == "0.19.0" or MESOS_VERSION == "0.19.1":
+        STATS_CUR = dict(STATS_MESOS.items() + STATS_MESOS_019.items())
+    elif MESOS_VERSION == "0.20.0" or MESOS_VERSION == "0.20.1":
+        STATS_CUR = dict(STATS_MESOS.items() + STATS_MESOS_020.items())
+    elif MESOS_VERSION == "0.21.0" or MESOS_VERSION == "0.21.1":
+        STATS_CUR = dict(STATS_MESOS.items() + STATS_MESOS_021.items())
+    else:
+        STATS_CUR = dict(STATS_MESOS.items() + STATS_MESOS_021.items())
 
     MESOS_URL = "http://" + MESOS_HOST + ":" + str(MESOS_PORT) + "/metrics/snapshot"
     STATS_CUR = dict(STATS_MESOS.items())
