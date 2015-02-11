@@ -19,7 +19,7 @@ import urllib2
 import socket
 import collections
 
-PREFIX = "mesos"
+PREFIX = "mesos-master"
 MESOS_HOST = "localhost"
 MESOS_PORT = 5050
 MESOS_VERSION = "0.21.0"
