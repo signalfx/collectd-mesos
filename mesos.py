@@ -155,7 +155,7 @@ def configure_callback(conf):
             MESOS_PORT = int(node.values[0])
         elif node.key == 'Verbose':
             VERBOSE_LOGGING = bool(node.values[0])
-        elif node.key == "Version":
+        elif node.key == 'Version':
             MESOS_VERSION = node.values[0]
         else:
             collectd.warning('mesos plugin: Unknown config key: %s.' % node.key)
@@ -170,9 +170,8 @@ def configure_callback(conf):
         STATS_CUR = dict(STATS_MESOS.items() + STATS_MESOS_021.items())
 
     MESOS_URL = "http://" + MESOS_HOST + ":" + str(MESOS_PORT) + "/metrics/snapshot"
-    STATS_CUR = dict(STATS_MESOS.items())
 
-    log_verbose('Configured with host=%s, port=%s, url=%s' % (MESOS_HOST, MESOS_PORT, MESOS_URL))
+    log_verbose('Configured with version=%s, host=%s, port=%s, url=%s' % (MESOS_VERSION, MESOS_HOST, MESOS_PORT, MESOS_URL))
 
 
 def fetch_stats():
