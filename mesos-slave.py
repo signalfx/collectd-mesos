@@ -108,7 +108,7 @@ def configure_callback(conf):
         elif node.key == 'Version':
             MESOS_VERSION = node.values[0]
         else:
-            collectd.warning('mesos plugin: Unknown config key: %s.' % node.key)
+            collectd.warning('mesos-slave plugin: Unknown config key: %s.' % node.key)
 
     if MESOS_VERSION == "0.19.0" or MESOS_VERSION == "0.19.1":
         STATS_CUR = dict(STATS_MESOS.items() + STATS_MESOS_019.items())
@@ -121,40 +121,35 @@ def configure_callback(conf):
 
     MESOS_URL = "http://" + MESOS_HOST + ":" + str(MESOS_PORT) + "/metrics/snapshot"
 
-    log_verbose('Configured with version=%s, host=%s, port=%s, url=%s' % (MESOS_VERSION, MESOS_HOST, MESOS_PORT, MESOS_URL))
+    log_verbose('mesos-slave plugin configured with version=%s, host=%s, port=%s, url=%s' % (MESOS_VERSION, MESOS_HOST, MESOS_PORT, MESOS_URL))
 
 
 def fetch_stats():
     try:
         result = json.load(urllib2.urlopen(MESOS_URL, timeout=10))
     except urllib2.URLError, e:
-        collectd.error('mesos plugin: Error connecting to %s - %r' % (MESOS_URL, e))
+        collectd.error('mesos-slave plugin: Error connecting to %s - %r' % (MESOS_URL, e))
         return None
     return parse_stats(result)
 
 
 def parse_stats(json):
-    """Parse stats response from Mesos"""
-    """Ignore stats if coming from non-leading mesos master"""
-    elected_result = lookup_stat('master/elected', json)
-    if elected_result == 1:
-        for name, key in STATS_CUR.iteritems():
-            result = lookup_stat(name, json)
-            dispatch_stat(result, name, key)
-    else:
-        return None
+    """Parse stats response from Mesos slave"""
+    for name, key in STATS_CUR.iteritems():
+        result = lookup_stat(name, json)
+        dispatch_stat(result, name, key)
 
 
 def dispatch_stat(result, name, key):
     """Read a key from info response data and dispatch a value"""
     if result is None:
-        collectd.warning('mesos plugin: Value not found for %s' % name)
+        collectd.warning('mesos-slave plugin: Value not found for %s' % name)
         return
     estype = key.type
     value = int(result)
     log_verbose('Sending value[%s]: %s=%s' % (estype, name, value))
 
-    val = collectd.Values(plugin='mesos')
+    val = collectd.Values(plugin='mesos-slave')
     val.type = estype
     val.type_instance = name
     val.values = [value]
@@ -178,7 +173,7 @@ def dig_it_up(obj, path):
 def log_verbose(msg):
     if not VERBOSE_LOGGING:
         return
-    collectd.info('mesos plugin [verbose]: %s' % msg)
+    collectd.info('mesos-slave plugin [verbose]: %s' % msg)
 
 collectd.register_config(configure_callback)
 collectd.register_read(read_callback)
