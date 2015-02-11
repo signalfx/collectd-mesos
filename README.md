@@ -11,9 +11,14 @@ Stats:
  * Task stats (finished, lost, failed)
  * Many more...
 
+This plugin currently defaults to pulling metrics from Mesos 0.21.x but it can
+be configured to retrieve stats from Mesos 0.19.x and later by setting the `Version`
+configuration attribute via collectd.  See `Configuration` section.
+
 Install
 -------
- 1. Place mesos.py in collectd'opt/collectd/lib/collectd/plugins/python (assuming you have collectd installed to /opt/collectd).
+ 1. Place mesos.py in collectd'opt/collectd/lib/collectd/plugins/python (assuming you
+ have collectd installed to /opt/collectd).
  2. Configure the plugin (see below).
  3. Restart collectd.
 
@@ -22,6 +27,7 @@ You can also install the plugin using this [Chef Cookbook](https://github.com/du
 Configuration
 -------------
  * See mesos.conf
+ * Set the version (0.19.0, 0.19.1, 0.20.0, 0.20.1, 0.21.0), default is 0.21.0
 
 Requirements
 ------------
