@@ -17,7 +17,7 @@ configuration attribute via collectd.  See `Configuration` section.
 
 Install
 -------
- 1. Place mesos.py in collectd'opt/collectd/lib/collectd/plugins/python (assuming you
+ 1. Place mesos-master.py or mesos-slave.py in collectd'opt/collectd/lib/collectd/plugins/python (assuming you
  have collectd installed to /opt/collectd).
  2. Configure the plugin (see below).
  3. Restart collectd.
@@ -26,7 +26,7 @@ You can also install the plugin using this [Chef Cookbook](https://github.com/du
 
 Configuration
 -------------
- * See mesos.conf
+ * See mesos-master.conf or mesos-slave.conf
  * Set the version (0.19.0, 0.19.1, 0.20.0, 0.20.1, 0.21.0), default is 0.21.0
 
 Requirements
