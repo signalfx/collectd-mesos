@@ -19,7 +19,7 @@ import urllib2
 import socket
 import collections
 
-PREFIX = "mesos"
+PREFIX = "mesos-master"
 MESOS_HOST = "localhost"
 MESOS_PORT = 5050
 MESOS_VERSION = "0.21.0"
@@ -33,56 +33,56 @@ STATS_CUR = {}
 # DICT: Common Metrics in 0.19.0, 0.20.0 and 0.21.0
 STATS_MESOS = {
     # Master
-    'master/cpus_percent': Stat("gauge", "master/cpus_percent"),
+    'master/cpus_percent': Stat("percent", "master/cpus_percent"),
     'master/cpus_total': Stat("gauge", "master/cpus_total"),
     'master/cpus_used': Stat("gauge", "master/cpus_used"),
-    'master/disk_percent': Stat("gauge", "master/disk_percent"),
+    'master/disk_percent': Stat("percent", "master/disk_percent"),
     'master/disk_total': Stat("gauge", "master/disk_total"),
     'master/disk_used': Stat("gauge", "master/disk_used"),
     'master/dropped_messages': Stat("counter", "master/dropped_messages"),
     'master/elected': Stat("gauge", "master/elected"),
     'master/frameworks_active': Stat("gauge", "master/frameworks_active"),
     'master/frameworks_inactive': Stat("gauge", "master/frameworks_inactive"),
-    'master/invalid_framework_to_executor_messages': Stat("gauge", "master/invalid_framework_to_executor_messages"),
-    'master/invalid_status_update_acknowledgements': Stat("gauge", "master/invalid_status_update_acknowledgements"),
-    'master/invalid_status_updates': Stat("gauge", "master/invalid_status_updates"),
-    'master/mem_percent': Stat("gauge", "master/mem_percent"),
+    'master/invalid_framework_to_executor_messages': Stat("counter", "master/invalid_framework_to_executor_messages"),
+    'master/invalid_status_update_acknowledgements': Stat("counter", "master/invalid_status_update_acknowledgements"),
+    'master/invalid_status_updates': Stat("counter", "master/invalid_status_updates"),
+    'master/mem_percent': Stat("percent", "master/mem_percent"),
     'master/mem_total': Stat("gauge", "master/mem_total"),
     'master/mem_used': Stat("gauge", "master/mem_used"),
-    'master/messages_authenticate': Stat("gauge", "master/messages_authenticate"),
-    'master/messages_deactivate_framework': Stat("gauge", "master/messages_deactivate_framework"),
-    'master/messages_exited_executor': Stat("gauge", "master/messages_exited_executor"),
-    'master/messages_framework_to_executor': Stat("gauge", "master/messages_framework_to_executor"),
-    'master/messages_kill_task': Stat("gauge", "master/messages_kill_task"),
-    'master/messages_launch_tasks': Stat("gauge", "master/messages_launch_tasks"),
-    'master/messages_reconcile_tasks': Stat("gauge", "master/messages_reconcile_tasks"),
-    'master/messages_register_framework': Stat("gauge", "master/messages_register_framework"),
-    'master/messages_register_slave': Stat("gauge", "master/messages_register_slave"),
-    'master/messages_reregister_framework': Stat("gauge", "master/messages_reregister_framework"),
-    'master/messages_reregister_slave': Stat("gauge", "master/messages_reregister_slave"),
-    'master/messages_revive_offers': Stat("gauge", "master/messages_revive_offers"),
-    'master/messages_status_update': Stat("gauge", "master/messages_status_update"),
-    'master/messages_status_update_acknowledgement': Stat("gauge", "master/messages_status_update_acknowledgement"),
-    'master/messages_unregister_framework': Stat("gauge", "master/messages_unregister_framework"),
-    'master/messages_unregister_slave': Stat("gauge", "master/messages_unregister_slave"),
+    'master/messages_authenticate': Stat("counter", "master/messages_authenticate"),
+    'master/messages_deactivate_framework': Stat("counter", "master/messages_deactivate_framework"),
+    'master/messages_exited_executor': Stat("counter", "master/messages_exited_executor"),
+    'master/messages_framework_to_executor': Stat("counter", "master/messages_framework_to_executor"),
+    'master/messages_kill_task': Stat("counter", "master/messages_kill_task"),
+    'master/messages_launch_tasks': Stat("counter", "master/messages_launch_tasks"),
+    'master/messages_reconcile_tasks': Stat("counter", "master/messages_reconcile_tasks"),
+    'master/messages_register_framework': Stat("counter", "master/messages_register_framework"),
+    'master/messages_register_slave': Stat("counter", "master/messages_register_slave"),
+    'master/messages_reregister_framework': Stat("counter", "master/messages_reregister_framework"),
+    'master/messages_reregister_slave': Stat("counter", "master/messages_reregister_slave"),
+    'master/messages_revive_offers': Stat("counter", "master/messages_revive_offers"),
+    'master/messages_status_update': Stat("counter", "master/messages_status_update"),
+    'master/messages_status_update_acknowledgement': Stat("counter", "master/messages_status_update_acknowledgement"),
+    'master/messages_unregister_framework': Stat("counter", "master/messages_unregister_framework"),
+    'master/messages_unregister_slave': Stat("counter", "master/messages_unregister_slave"),
     'master/outstanding_offers': Stat("gauge", "master/outstanding_offers"),
-    'master/recovery_slave_removals': Stat("gauge", "master/recovery_slave_removals"),
-    'master/slave_registrations': Stat("gauge", "master/slave_registrations"),
-    'master/slave_removals': Stat("gauge", "master/slave_removals"),
-    'master/slave_reregistrations': Stat("gauge", "master/slave_reregistrations"),
+    'master/recovery_slave_removals': Stat("counter", "master/recovery_slave_removals"),
+    'master/slave_registrations': Stat("counter", "master/slave_registrations"),
+    'master/slave_removals': Stat("counter", "master/slave_removals"),
+    'master/slave_reregistrations': Stat("counter", "master/slave_reregistrations"),
     'master/slaves_active': Stat("gauge", "master/slaves_active"),
     'master/slaves_inactive': Stat("gauge", "master/slaves_inactive"),
-    'master/tasks_failed': Stat("gauge", "master/tasks_failed"),
-    'master/tasks_finished': Stat("gauge", "master/tasks_finished"),
-    'master/tasks_killed': Stat("gauge", "master/tasks_killed"),
-    'master/tasks_lost': Stat("gauge", "master/tasks_lost"),
+    'master/tasks_failed': Stat("counter", "master/tasks_failed"),
+    'master/tasks_finished': Stat("counter", "master/tasks_finished"),
+    'master/tasks_killed': Stat("counter", "master/tasks_killed"),
+    'master/tasks_lost': Stat("counter", "master/tasks_lost"),
     'master/tasks_running': Stat("gauge", "master/tasks_running"),
     'master/tasks_staging': Stat("gauge", "master/tasks_staging"),
     'master/tasks_starting': Stat("gauge", "master/tasks_starting"),
-    'master/uptime_secs': Stat("counter", "master/uptime_secs"),
-    'master/valid_framework_to_executor_messages': Stat("gauge", "master/valid_framework_to_executor_messages"),
-    'master/valid_status_update_acknowledgements': Stat("gauge", "master/valid_status_update_acknowledgements"),
-    'master/valid_status_updates': Stat("gauge", "master/valid_status_updates"),
+    'master/uptime_secs': Stat("gauge", "master/uptime_secs"),
+    'master/valid_framework_to_executor_messages': Stat("counter", "master/valid_framework_to_executor_messages"),
+    'master/valid_status_update_acknowledgements': Stat("counter", "master/valid_status_update_acknowledgements"),
+    'master/valid_status_updates': Stat("counter", "master/valid_status_updates"),
 
     # Registrar
     'registrar/queued_operations': Stat("gauge", "registrar/queued_operations"),
@@ -118,7 +118,7 @@ STATS_MESOS_020 = {
     'master/event_queue_dispatches': Stat("gauge", "master/event_queue_dispatches"),
     'master/event_queue_http_requests': Stat("gauge", "master/event_queue_http_requests"),
     'master/event_queue_messages': Stat("gauge", "master/event_queue_messages"),
-    'master/messages_resource_request': Stat("gauge", "master/messages_resource_request")
+    'master/messages_resource_request': Stat("counter", "master/messages_resource_request")
 }
 
 # DICT: Mesos 0.21.0, 0.21.1
@@ -128,7 +128,7 @@ STATS_MESOS_021 = {
     'master/event_queue_messages': Stat("gauge", "master/event_queue_messages"),
     'master/frameworks_connected': Stat("gauge", "master/frameworks_connected"),
     'master/frameworks_disconnected': Stat("gauge", "master/frameworks_disconnected"),
-    'master/messages_resource_request': Stat("gauge", "master/messages_resource_request"),
+    'master/messages_resource_request': Stat("counter", "master/messages_resource_request"),
     'master/slaves_connected': Stat("gauge", "master/slaves_connected"),
     'master/slaves_disconnected': Stat("gauge", "master/slaves_disconnected")
 }
@@ -140,7 +140,7 @@ def lookup_stat(stat, json):
     # Check to make sure we have a valid result
     # dig_it_up returns False if no match found
     if not isinstance(val, bool):
-        return int(val)
+        return val
     else:
         return None
 
@@ -152,13 +152,13 @@ def configure_callback(conf):
         if node.key == 'Host':
             MESOS_HOST = node.values[0]
         elif node.key == 'Port':
-            MESOS_PORT = int(node.values[0])
+            MESOS_PORT = islave_cpus_percentnc(node.values[0])
         elif node.key == 'Verbose':
             VERBOSE_LOGGING = bool(node.values[0])
         elif node.key == 'Version':
             MESOS_VERSION = node.values[0]
         else:
-            collectd.warning('mesos plugin: Unknown config key: %s.' % node.key)
+            collectd.warning('mesos-master plugin: Unknown config key: %s.' % node.key)
 
     if MESOS_VERSION == "0.19.0" or MESOS_VERSION == "0.19.1":
         STATS_CUR = dict(STATS_MESOS.items() + STATS_MESOS_019.items())
@@ -171,14 +171,14 @@ def configure_callback(conf):
 
     MESOS_URL = "http://" + MESOS_HOST + ":" + str(MESOS_PORT) + "/metrics/snapshot"
 
-    log_verbose('Configured with version=%s, host=%s, port=%s, url=%s' % (MESOS_VERSION, MESOS_HOST, MESOS_PORT, MESOS_URL))
+    log_verbose('mesos-master plugin configured with version=%s, host=%s, port=%s, url=%s' % (MESOS_VERSION, MESOS_HOST, MESOS_PORT, MESOS_URL))
 
 
 def fetch_stats():
     try:
         result = json.load(urllib2.urlopen(MESOS_URL, timeout=10))
     except urllib2.URLError, e:
-        collectd.error('mesos plugin: Error connecting to %s - %r' % (MESOS_URL, e))
+        collectd.error('mesos-master plugin: Error connecting to %s - %r' % (MESOS_URL, e))
         return None
     return parse_stats(result)
 
@@ -192,19 +192,20 @@ def parse_stats(json):
             result = lookup_stat(name, json)
             dispatch_stat(result, name, key)
     else:
+        log_verbose('This mesos master node is not elected leader so not writing data.')
         return None
 
 
 def dispatch_stat(result, name, key):
     """Read a key from info response data and dispatch a value"""
     if result is None:
-        collectd.warning('mesos plugin: Value not found for %s' % name)
+        collectd.warning('mesos-master plugin: Value not found for %s' % name)
         return
     estype = key.type
-    value = int(result)
+    value = result
     log_verbose('Sending value[%s]: %s=%s' % (estype, name, value))
 
-    val = collectd.Values(plugin='mesos')
+    val = collectd.Values(plugin='mesos-master')
     val.type = estype
     val.type_instance = name
     val.values = [value]
@@ -228,7 +229,7 @@ def dig_it_up(obj, path):
 def log_verbose(msg):
     if not VERBOSE_LOGGING:
         return
-    collectd.info('mesos plugin [verbose]: %s' % msg)
+    collectd.info('mesos-master plugin [verbose]: %s' % msg)
 
 collectd.register_config(configure_callback)
 collectd.register_read(read_callback)
