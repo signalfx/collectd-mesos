@@ -152,7 +152,7 @@ def configure_callback(conf):
         if node.key == 'Host':
             MESOS_HOST = node.values[0]
         elif node.key == 'Port':
-            MESOS_PORT = islave_cpus_percentnc(node.values[0])
+            MESOS_PORT = int(node.values[0])
         elif node.key == 'Verbose':
             VERBOSE_LOGGING = bool(node.values[0])
         elif node.key == 'Version':
