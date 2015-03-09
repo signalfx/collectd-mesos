@@ -33,10 +33,10 @@ STATS_CUR = {}
 # DICT: Common Metrics in 0.19.0, 0.20.0 and 0.21.0
 STATS_MESOS = {
     # Master
-    'master/cpus_percent': Stat("gauge", "master/cpus_percent"),
+    'master/cpus_percent': Stat("percent", "master/cpus_percent"),
     'master/cpus_total': Stat("gauge", "master/cpus_total"),
     'master/cpus_used': Stat("gauge", "master/cpus_used"),
-    'master/disk_percent': Stat("gauge", "master/disk_percent"),
+    'master/disk_percent': Stat("percent", "master/disk_percent"),
     'master/disk_total': Stat("gauge", "master/disk_total"),
     'master/disk_used': Stat("gauge", "master/disk_used"),
     'master/dropped_messages': Stat("counter", "master/dropped_messages"),
@@ -46,7 +46,7 @@ STATS_MESOS = {
     'master/invalid_framework_to_executor_messages': Stat("counter", "master/invalid_framework_to_executor_messages"),
     'master/invalid_status_update_acknowledgements': Stat("counter", "master/invalid_status_update_acknowledgements"),
     'master/invalid_status_updates': Stat("counter", "master/invalid_status_updates"),
-    'master/mem_percent': Stat("gauge", "master/mem_percent"),
+    'master/mem_percent': Stat("percent", "master/mem_percent"),
     'master/mem_total': Stat("gauge", "master/mem_total"),
     'master/mem_used': Stat("gauge", "master/mem_used"),
     'master/messages_authenticate': Stat("counter", "master/messages_authenticate"),
@@ -152,7 +152,7 @@ def configure_callback(conf):
         if node.key == 'Host':
             MESOS_HOST = node.values[0]
         elif node.key == 'Port':
-            MESOS_PORT = int(node.values[0])
+            MESOS_PORT = islave_cpus_percentnc(node.values[0])
         elif node.key == 'Verbose':
             VERBOSE_LOGGING = bool(node.values[0])
         elif node.key == 'Version':

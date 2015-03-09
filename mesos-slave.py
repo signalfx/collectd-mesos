@@ -72,13 +72,13 @@ STATS_MESOS_020 = {
 
 # DICT: Mesos 0.21.0, 0.21.1
 STATS_MESOS_021 = {
-    'slave/cpus_percent': Stat("gauge", "slave/cpus_percent"),
+    'slave/cpus_percent': Stat("percent", "slave/cpus_percent"),
     'slave/cpus_total': Stat("gauge", "slave/cpus_total"),
     'slave/cpus_used': Stat("gauge", "slave/cpus_used"),
-    'slave/disk_percent': Stat("gauge", "slave/disk_percent"),
+    'slave/disk_percent': Stat("percent", "slave/disk_percent"),
     'slave/disk_total': Stat("gauge", "slave/disk_total"),
     'slave/disk_used': Stat("gauge", "slave/disk_used"),
-    'slave/mem_percent': Stat("gauge", "slave/mem_percent"),
+    'slave/mem_percent': Stat("percent", "slave/mem_percent"),
     'slave/mem_total': Stat("gauge", "slave/mem_total"),
     'slave/mem_used': Stat("gauge", "slave/mem_used"),
     'slave/executors_registering': Stat("gauge", "slave/executors_registering"),
