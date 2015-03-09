@@ -94,7 +94,7 @@ def lookup_stat(stat, json):
     # Check to make sure we have a valid result
     # dig_it_up returns False if no match found
     if not isinstance(val, bool):
-        return int(val)
+        return val
     else:
         return None
 
@@ -150,7 +150,7 @@ def dispatch_stat(result, name, key):
         collectd.warning('mesos-slave plugin: Value not found for %s' % name)
         return
     estype = key.type
-    value = int(result)
+    value = result
     log_verbose('Sending value[%s]: %s=%s' % (estype, name, value))
 
     val = collectd.Values(plugin='mesos-slave')
