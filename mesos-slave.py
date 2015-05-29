@@ -22,7 +22,7 @@ import collections
 PREFIX = "mesos-slave"
 MESOS_HOST = "localhost"
 MESOS_PORT = 5051
-MESOS_VERSION = "0.21.0"
+MESOS_VERSION = "0.22.0"
 MESOS_URL = ""
 VERBOSE_LOGGING = False
 
@@ -30,7 +30,7 @@ Stat = collections.namedtuple('Stat', ('type', 'path'))
 
 STATS_CUR = {}
 
-# DICT: Common Metrics in 0.19.0, 0.20.0 and 0.21.0
+# DICT: Common Metrics in 0.19.0, 0.20.0, 0.21.0 and 0.22.0
 STATS_MESOS = {
     # Slave
     'slave/frameworks_active': Stat("gauge", "slave/frameworks_active"),
@@ -87,6 +87,9 @@ STATS_MESOS_021 = {
     'slave/executors_terminated': Stat("counter", "slave/executors_terminated")
 }
 
+# DICT: Mesos 0.22.0, 0.22.1
+STATS_MESOS_022 = STATS_MESOS_021.copy()
+
 # FUNCTION: Collect stats from JSON result
 def lookup_stat(stat, json):
     val = dig_it_up(json, STATS_CUR[stat].path)
@@ -120,8 +123,10 @@ def configure_callback(conf):
         STATS_CUR = dict(STATS_MESOS.items() + STATS_MESOS_020.items())
     elif MESOS_VERSION == "0.21.0" or MESOS_VERSION == "0.21.1":
         STATS_CUR = dict(STATS_MESOS.items() + STATS_MESOS_021.items())
-    else:
+    elif MESOS_VERSION == "0.22.0" or MESOS_VERSION == "0.22.1":
         STATS_CUR = dict(STATS_MESOS.items() + STATS_MESOS_021.items())
+    else:
+        STATS_CUR = dict(STATS_MESOS.items() + STATS_MESOS_022.items())
 
     MESOS_URL = "http://" + MESOS_HOST + ":" + str(MESOS_PORT) + "/metrics/snapshot"
 
