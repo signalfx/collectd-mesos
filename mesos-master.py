@@ -22,7 +22,7 @@ import collections
 PREFIX = "mesos-master"
 MESOS_HOST = "localhost"
 MESOS_PORT = 5050
-MESOS_VERSION = "0.21.0"
+MESOS_VERSION = "0.22.0"
 MESOS_URL = ""
 VERBOSE_LOGGING = False
 
@@ -30,7 +30,7 @@ Stat = collections.namedtuple('Stat', ('type', 'path'))
 
 STATS_CUR = {}
 
-# DICT: Common Metrics in 0.19.0, 0.20.0 and 0.21.0
+# DICT: Common Metrics in 0.19.0, 0.20.0, 0.21.0 and 0.22.0
 STATS_MESOS = {
     # Master
     'master/cpus_percent': Stat("percent", "master/cpus_percent"),
@@ -133,6 +133,23 @@ STATS_MESOS_021 = {
     'master/slaves_disconnected': Stat("gauge", "master/slaves_disconnected")
 }
 
+# DICT: Mesos 0.22.0, 0.22.1
+STATS_MESOS_022 = {
+    'master/event_queue_dispatches': Stat("gauge", "master/event_queue_dispatches"),
+    'master/event_queue_http_requests': Stat("gauge", "master/event_queue_http_requests"),
+    'master/event_queue_messages': Stat("gauge", "master/event_queue_messages"),
+    'master/frameworks_connected': Stat("gauge", "master/frameworks_connected"),
+    'master/frameworks_disconnected': Stat("gauge", "master/frameworks_disconnected"),
+    'master/messages_decline_offers': Stat("counter", "master/messages_decline_offers"),
+    'master/messages_resource_request': Stat("counter", "master/messages_resource_request"),
+    'master/slaves_connected': Stat("gauge", "master/slaves_connected"),
+    'master/slaves_disconnected': Stat("gauge", "master/slaves_disconnected"),
+    'master/slave_shutdowns_canceled': Stat("counter", "master/slave_shutdowns_canceled"),
+    'master/slave_shutdowns_scheduled': Stat("counter", "master/slave_shutdowns_scheduled"),
+    'master/task_lost/source_master/reason_slave_removed': Stat("counter", "task_lost/source_master/reason_slave_removed"),
+    'master/tasks_error': Stat("counter", "master/tasks_error")
+}
+
 # FUNCTION: Collect stats from JSON result
 def lookup_stat(stat, json):
     val = dig_it_up(json, STATS_CUR[stat].path)
@@ -166,8 +183,10 @@ def configure_callback(conf):
         STATS_CUR = dict(STATS_MESOS.items() + STATS_MESOS_020.items())
     elif MESOS_VERSION == "0.21.0" or MESOS_VERSION == "0.21.1":
         STATS_CUR = dict(STATS_MESOS.items() + STATS_MESOS_021.items())
+    elif MESOS_VERSION == "0.22.0" or MESOS_VERSION == "0.22.1":
+        STATS_CUR = dict(STATS_MESOS.items() + STATS_MESOS_022.items())
     else:
-        STATS_CUR = dict(STATS_MESOS.items() + STATS_MESOS_021.items())
+        STATS_CUR = dict(STATS_MESOS.items() + STATS_MESOS_022.items())
 
     MESOS_URL = "http://" + MESOS_HOST + ":" + str(MESOS_PORT) + "/metrics/snapshot"
 
