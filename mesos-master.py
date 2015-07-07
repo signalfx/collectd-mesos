@@ -228,6 +228,8 @@ def dispatch_stat(result, name, key):
     val.type = estype
     val.type_instance = name
     val.values = [value]
+    # https://github.com/collectd/collectd/issues/716
+    val.meta = {'0': True}
     val.dispatch()
 
 
