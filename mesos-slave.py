@@ -20,7 +20,7 @@ import socket
 import collections
 
 PREFIX = "mesos-slave"
-MESOS_POSTFIX = ""
+MESOS_INSTANCE = ""
 MESOS_HOST = "localhost"
 MESOS_PORT = 5051
 MESOS_VERSION = "0.22.0"
@@ -124,7 +124,7 @@ def configure_callback(conf):
     port = MESOS_PORT
     verboseLogging = VERBOSE_LOGGING
     version = MESOS_VERSION
-    postfix = MESOS_POSTFIX
+    instance = MESOS_INSTANCE
     for node in conf.children:
         if node.key == 'Host':
             host = node.values[0]
@@ -134,20 +134,20 @@ def configure_callback(conf):
             verboseLogging = bool(node.values[0])
         elif node.key == 'Version':
             version = node.values[0]
-        elif node.key == 'Postfix':
-            postfix = node.values[0]
+        elif node.key == 'Instance':
+            instance = node.values[0]
         else:
             collectd.warning('mesos-slave plugin: Unknown config key: %s.' % node.key)
             continue
 
-    log_verbose('true','mesos-master plugin configured with host = %s, port = %s, verbose logging = %s, version = %s, postfix = %s' % (host,port,verboseLogging,version,postfix))
+    log_verbose('true','mesos-master plugin configured with host = %s, port = %s, verbose logging = %s, version = %s, instance = %s' % (host,port,verboseLogging,version,instance))
     CONFIGS.append({
         'host': host,
         'port': port,
         'mesos_url': "http://" + host + ":" + str(port) + "/metrics/snapshot",
         'verboseLogging': verboseLogging,
         'version': version,
-        'postfix': postfix,
+        'instance': instance,
     })
 
 def fetch_stats():
@@ -174,12 +174,13 @@ def dispatch_stat(result, name, key, conf):
         return
     estype = key.type
     value = result
-    log_verbose(conf['verboseLogging'], 'Sending value[%s]: %s=%s' % (estype, name, value))
+    log_verbose(conf['verboseLogging'], 'Sending value[%s]: %s=%s for instance:%s' % (estype, name, value, conf['instance']))
 
-    val = collectd.Values(plugin='mesos-slave%s' % (conf['postfix']))
+    val = collectd.Values(plugin='mesos-slave')
     val.type = estype
     val.type_instance = name
     val.values = [value]
+    val.plugin_instance = conf['instance']
     # https://github.com/collectd/collectd/issues/716
     val.meta = {'0': True}
     val.dispatch()
