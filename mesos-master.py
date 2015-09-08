@@ -31,7 +31,7 @@ CONFIGS = []
 
 Stat = collections.namedtuple('Stat', ('type', 'path'))
 
-# DICT: Common Metrics in 0.19.0, 0.20.0, 0.21.0 and 0.22.0
+# DICT: Common Metrics in 0.19.0, 0.20.0, 0.21.0, 0.22.0 and 0.23.0
 STATS_MESOS = {
     # Master
     'master/cpus_percent': Stat("percent", "master/cpus_percent"),
@@ -199,8 +199,8 @@ def configure_callback(conf):
         else:
             collectd.warning('mesos-master plugin: Unknown config key: %s.' % node.key)
             continue
- 
-    log_verbose('true','mesos-master plugin configured with host = %s, port = %s, verbose logging = %s, version = %s, instance = %s' % (host,port,verboseLogging,version,instance))
+
+    log_verbose(conf['verboseLogging'],'mesos-master plugin configured with host = %s, port = %s, verbose logging = %s, version = %s, instance = %s' % (host,port,verboseLogging,version,instance))
     CONFIGS.append({
         'host': host,
         'port': port,
@@ -208,7 +208,7 @@ def configure_callback(conf):
         'verboseLogging': verboseLogging,
         'version': version,
         'instance': instance,
-    }) 
+    })
 
 def fetch_stats():
     for conf in CONFIGS:
@@ -236,7 +236,7 @@ def parse_stats(conf, json):
 def dispatch_stat(result, name, key, conf):
     """Read a key from info response data and dispatch a value"""
     if result is None:
-        collectd.warning('mesos-master plugin: Value not found for %s' % name)
+        log_verbose(conf['verboseLogging'], 'mesos-master plugin: Value not found for %s' % (name))
         return
     estype = key.type
     value = result
