@@ -200,7 +200,7 @@ def configure_callback(conf):
             collectd.warning('mesos-master plugin: Unknown config key: %s.' % node.key)
             continue
 
-    log_verbose(conf['verboseLogging'],'mesos-master plugin configured with host = %s, port = %s, verbose logging = %s, version = %s, instance = %s' % (host,port,verboseLogging,version,instance))
+    log_verbose(verboseLogging,'mesos-master plugin configured with host = %s, port = %s, verbose logging = %s, version = %s, instance = %s' % (host,port,verboseLogging,version,instance))
     CONFIGS.append({
         'host': host,
         'port': port,
