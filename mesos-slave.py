@@ -176,7 +176,7 @@ def dispatch_stat(result, name, key, conf):
     value = result
     log_verbose(conf['verboseLogging'], 'Sending value[%s]: %s=%s for instance:%s' % (estype, name, value, conf['instance']))
 
-    val = collectd.Values(plugin='mesos-slave')
+    val = collectd.Values(plugin='mesos')
     val.type = estype
     val.type_instance = name
     val.values = [value]
