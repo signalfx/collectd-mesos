@@ -140,7 +140,7 @@ def configure_callback(conf):
             collectd.warning('mesos-slave plugin: Unknown config key: %s.' % node.key)
             continue
 
-    log_verbose('true','mesos-slave plugin configured with host = %s, port = %s, verbose logging = %s, version = %s, instance = %s' % (host,port,verboseLogging,version,instance))
+    log_verbose(verboseLogging,'mesos-slave plugin configured with host = %s, port = %s, verbose logging = %s, version = %s, instance = %s' % (host,port,verboseLogging,version,instance))
     CONFIGS.append({
         'host': host,
         'port': port,
@@ -150,14 +150,13 @@ def configure_callback(conf):
         'instance': instance,
     })
 
-def fetch_stats():
-    for conf in CONFIGS:
-      try:
+def fetch_stats(conf):
+    try:
         result = json.load(urllib2.urlopen(conf['mesos_url'], timeout=10))
-      except urllib2.URLError, e:
+    except urllib2.URLError, e:
         collectd.error('mesos-slave plugin: Error connecting to %s - %r' % (conf['mesos_url'], e))
         return None
-      parse_stats(conf, result)
+    parse_stats(conf, result)
 
 
 def parse_stats(conf, json):
@@ -187,8 +186,9 @@ def dispatch_stat(result, name, key, conf):
 
 
 def read_callback():
-    log_verbose('true', 'Read callback called')
-    stats = fetch_stats()
+    for conf in CONFIGS:
+        log_verbose(conf['verboseLogging'], 'Read callback called')
+        stats = fetch_stats(conf)
 
 
 def dig_it_up(obj, path):
