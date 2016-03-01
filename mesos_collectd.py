@@ -91,7 +91,7 @@ def fetch_stats(conf):
         result = json.load(urllib2.urlopen(conf['mesos_url'], timeout=10))
     except urllib2.URLError, e:
         collectd.error('%s plugin: Error connecting to %s - %r' %
-                       (prefix, conf['mesos_url'], e))
+                       (MESOS_PREFIX, conf['mesos_url'], e))
         return None
     parse_stats(conf, result)
 
@@ -120,7 +120,7 @@ def dispatch_stat(result, name, key, conf):
     """Read a key from info response data and dispatch a value"""
     if result is None:
         log_verbose(conf['verboseLogging'],
-                    '%s plugin: Value not found for %s' % (prefix, name))
+                    '%s plugin: Value not found for %s' % (MESOS_PREFIX, name))
         return
     estype = key.type
     value = result
@@ -170,4 +170,4 @@ def dig_it_up(obj, path):
 def log_verbose(enabled, msg):
     if not enabled:
         return
-    collectd.info('%s plugin [verbose]: %s' % (prefix, msg))
+    collectd.info('%s plugin [verbose]: %s' % (MESOS_PREFIX, msg))
