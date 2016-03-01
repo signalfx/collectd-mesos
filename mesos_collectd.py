@@ -38,11 +38,13 @@ def lookup_stat(stat, json, conf):
         return None
 
 
-def configure_callback(conf, prefix, instance, host, port, version, url,
-                       verboseLogging):
+def configure_callback(conf, prefix, cluster, instance, host, port, version,
+                       url, verboseLogging):
     """Received configuration information"""
     global MESOS_PREFIX
     MESOS_PREFIX = prefix
+    global MESOS_CLUSTER
+    MESOS_CLUSTER = cluster
     global MESOS_INSTANCE
     MESOS_INSTANCE = instance
     global MESOS_HOST
@@ -67,6 +69,8 @@ def configure_callback(conf, prefix, instance, host, port, version, url,
             version = node.values[0]
         elif node.key == 'Instance':
             instance = node.values[0]
+        elif node.key == 'Cluster':
+            cluster = node.values[0]
         else:
             collectd.warning('%s plugin: Unknown config key: %s.' %
                              (prefix, node.key))
@@ -74,8 +78,9 @@ def configure_callback(conf, prefix, instance, host, port, version, url,
 
     log_verbose(verboseLogging,
                 '%s plugin configured with host = %s, port = %s, verbose '
-                'logging = %s, version = %s, instance = %s' %
-                (prefix, host, port, verboseLogging, version, instance))
+                'logging = %s, version = %s, instance = %s, cluster = %s' %
+                (prefix, host, port, verboseLogging, version, instance,
+                 cluster))
     CONFIGS.append({
         'host': host,
         'port': port,
@@ -83,6 +88,7 @@ def configure_callback(conf, prefix, instance, host, port, version, url,
         'verboseLogging': verboseLogging,
         'version': version,
         'instance': instance,
+        'cluster': cluster,
     })
 
 
@@ -132,7 +138,10 @@ def dispatch_stat(result, name, key, conf):
     val.type = estype
     val.type_instance = name
     val.values = [value]
-    val.plugin_instance = conf['instance']
+    cluster_dimension = ''
+    if conf['cluster']:
+        cluster_dimension = '[cluster=%s]' % conf['cluster']
+    val.plugin_instance = '%s%s' % (conf['instance'], cluster_dimension)
     # https://github.com/collectd/collectd/issues/716
     val.meta = {'0': True}
     val.dispatch()
