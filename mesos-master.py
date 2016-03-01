@@ -21,6 +21,7 @@ import mesos_collectd
 
 IS_MASTER = True
 PREFIX = "mesos-master"
+MESOS_CLUSTER = ""
 MESOS_INSTANCE = ""
 MESOS_HOST = "localhost"
 MESOS_PORT = 5050
@@ -207,8 +208,9 @@ STATS_MESOS_022 = {
 
 
 def configure_callback(conf):
-    mesos_collectd.configure_callback(conf, PREFIX, MESOS_INSTANCE, MESOS_HOST,
-                                      MESOS_PORT, MESOS_VERSION, MESOS_URL,
+    mesos_collectd.configure_callback(conf, PREFIX, MESOS_CLUSTER,
+                                      MESOS_INSTANCE, MESOS_HOST, MESOS_PORT,
+                                      MESOS_VERSION, MESOS_URL,
                                       VERBOSE_LOGGING)
 
 
