@@ -41,8 +41,8 @@ def lookup_stat(stat, json, conf):
 def configure_callback(conf, prefix, cluster, instance, host, port, version,
                        url, verboseLogging):
     """Received configuration information"""
-    global MESOS_PREFIX
-    MESOS_PREFIX = prefix
+    global PREFIX
+    PREFIX = prefix
     global MESOS_CLUSTER
     MESOS_CLUSTER = cluster
     global MESOS_INSTANCE
@@ -97,7 +97,7 @@ def fetch_stats(conf):
         result = json.load(urllib2.urlopen(conf['mesos_url'], timeout=10))
     except urllib2.URLError, e:
         collectd.error('%s plugin: Error connecting to %s - %r' %
-                       (MESOS_PREFIX, conf['mesos_url'], e))
+                       (PREFIX, conf['mesos_url'], e))
         return None
     parse_stats(conf, result)
 
@@ -126,7 +126,7 @@ def dispatch_stat(result, name, key, conf):
     """Read a key from info response data and dispatch a value"""
     if result is None:
         log_verbose(conf['verboseLogging'],
-                    '%s plugin: Value not found for %s' % (MESOS_PREFIX, name))
+                    '%s plugin: Value not found for %s' % (PREFIX, name))
         return
     estype = key.type
     value = result
@@ -134,7 +134,7 @@ def dispatch_stat(result, name, key, conf):
                 'Sending value[%s]: %s=%s for instance:%s' %
                 (estype, name, value, conf['instance']))
 
-    val = collectd.Values(plugin='mesos')
+    val = collectd.Values(plugin=PREFIX)
     val.type = estype
     val.type_instance = name
     val.values = [value]
@@ -179,4 +179,4 @@ def dig_it_up(obj, path):
 def log_verbose(enabled, msg):
     if not enabled:
         return
-    collectd.info('%s plugin [verbose]: %s' % (MESOS_PREFIX, msg))
+    collectd.info('%s plugin [verbose]: %s' % (PREFIX, msg))
