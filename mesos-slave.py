@@ -25,7 +25,6 @@ MESOS_CLUSTER = ""
 MESOS_INSTANCE = ""
 MESOS_HOST = "localhost"
 MESOS_PORT = 5051
-MESOS_VERSION = "0.22.0"
 MESOS_URL = ""
 VERBOSE_LOGGING = False
 
@@ -101,10 +100,9 @@ STATS_MESOS_022 = STATS_MESOS_021.copy()
 
 
 def configure_callback(conf):
-    mesos_collectd.configure_callback(conf, PREFIX, MESOS_CLUSTER,
+    mesos_collectd.configure_callback(conf, IS_MASTER, PREFIX, MESOS_CLUSTER,
                                       MESOS_INSTANCE, MESOS_HOST, MESOS_PORT,
-                                      MESOS_VERSION, MESOS_URL,
-                                      VERBOSE_LOGGING)
+                                      MESOS_URL, VERBOSE_LOGGING)
 
 
 def read_callback():
