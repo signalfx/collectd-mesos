@@ -4,6 +4,7 @@
 
 import collectd
 import json
+import subprocess
 import urllib2
 
 
@@ -38,7 +39,7 @@ def lookup_stat(stat, json, conf):
         return None
 
 
-def configure_callback(conf, prefix, cluster, instance, host, port, version,
+def configure_callback(conf, is_master, prefix, cluster, instance, host, port,
                        url, verboseLogging):
     """Received configuration information"""
     global PREFIX
@@ -51,12 +52,16 @@ def configure_callback(conf, prefix, cluster, instance, host, port, version,
     MESOS_HOST = host
     global MESOS_PORT
     MESOS_PORT = port
-    global MESOS_VERSION
-    MESOS_VERSION = version
     global MESOS_URL
     MESOS_URL = url
     global VERBOSE_LOGGING
     VERBOSE_LOGGING = verboseLogging
+
+    global MESOS_VERSION
+    binary = 'mesos-master' if is_master else 'mesos-slave'
+    # Expected output: mesos <version_string>
+    version = subprocess.check_output([binary, '--version'])
+    MESOS_VERSION = version.strip().split()[-1]
 
     for node in conf.children:
         if node.key == 'Host':
@@ -65,8 +70,6 @@ def configure_callback(conf, prefix, cluster, instance, host, port, version,
             port = int(node.values[0])
         elif node.key == 'Verbose':
             verboseLogging = bool(node.values[0])
-        elif node.key == 'Version':
-            version = node.values[0]
         elif node.key == 'Instance':
             instance = node.values[0]
         elif node.key == 'Cluster':
