@@ -22,6 +22,7 @@ Configuration
  * In the appropriate plugin configuration file (master or slave), change ModulePath to the location where the plugin was downloaded.
  * Change Cluster to a name for the Mesos cluster.
  * Change Instance to a name that will identify the plugin instance.
+ * Change Path to the location of the mesos-master or mesos-slave binary.
  * Set the Host and Port values.
  * Place the configuration file in a location that collectd is aware of.
 

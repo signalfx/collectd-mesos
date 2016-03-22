@@ -21,8 +21,9 @@ import mesos_collectd
 
 IS_MASTER = True
 PREFIX = "mesos-master"
-MESOS_CLUSTER = ""
-MESOS_INSTANCE = ""
+MESOS_CLUSTER = "cluster-0"
+MESOS_INSTANCE = "master-0"
+MESOS_PATH = "/usr/sbin"
 MESOS_HOST = "localhost"
 MESOS_PORT = 5050
 MESOS_URL = ""
@@ -208,8 +209,8 @@ STATS_MESOS_022 = {
 
 def configure_callback(conf):
     mesos_collectd.configure_callback(conf, IS_MASTER, PREFIX, MESOS_CLUSTER,
-                                      MESOS_INSTANCE, MESOS_HOST, MESOS_PORT,
-                                      MESOS_URL, VERBOSE_LOGGING)
+                                      MESOS_INSTANCE, MESOS_PATH, MESOS_HOST,
+                                      MESOS_PORT, MESOS_URL, VERBOSE_LOGGING)
 
 
 def read_callback():
