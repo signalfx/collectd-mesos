@@ -39,8 +39,8 @@ def lookup_stat(stat, json, conf):
         return None
 
 
-def configure_callback(conf, is_master, prefix, cluster, instance, host, port,
-                       url, verboseLogging):
+def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
+                       port, url, verboseLogging):
     """Received configuration information"""
     global PREFIX
     PREFIX = prefix
@@ -48,6 +48,8 @@ def configure_callback(conf, is_master, prefix, cluster, instance, host, port,
     MESOS_CLUSTER = cluster
     global MESOS_INSTANCE
     MESOS_INSTANCE = instance
+    global MESOS_PATH
+    MESOS_PATH = path
     global MESOS_HOST
     MESOS_HOST = host
     global MESOS_PORT
@@ -56,12 +58,6 @@ def configure_callback(conf, is_master, prefix, cluster, instance, host, port,
     MESOS_URL = url
     global VERBOSE_LOGGING
     VERBOSE_LOGGING = verboseLogging
-
-    global MESOS_VERSION
-    binary = 'mesos-master' if is_master else 'mesos-slave'
-    # Expected output: mesos <version_string>
-    version = subprocess.check_output([binary, '--version'])
-    MESOS_VERSION = version.strip().split()[-1]
 
     for node in conf.children:
         if node.key == 'Host':
@@ -74,16 +70,25 @@ def configure_callback(conf, is_master, prefix, cluster, instance, host, port,
             instance = node.values[0]
         elif node.key == 'Cluster':
             cluster = node.values[0]
+        elif node.key == 'Path':
+            path = node.values[0]
         else:
             collectd.warning('%s plugin: Unknown config key: %s.' %
                              (prefix, node.key))
             continue
 
+    global MESOS_VERSION
+    binary = '%s/%s' % (path, 'mesos-master' if is_master else 'mesos-slave')
+    # Expected output: mesos <version_string>
+    version = subprocess.check_output([binary, '--version'])
+    MESOS_VERSION = version.strip().split()[-1]
+
     log_verbose(verboseLogging,
                 '%s plugin configured with host = %s, port = %s, verbose '
-                'logging = %s, version = %s, instance = %s, cluster = %s' %
+                'logging = %s, version = %s, instance = %s, cluster = %s, '
+                'path = %s' %
                 (prefix, host, port, verboseLogging, version, instance,
-                 cluster))
+                 cluster, path))
     CONFIGS.append({
         'host': host,
         'port': port,
@@ -92,6 +97,7 @@ def configure_callback(conf, is_master, prefix, cluster, instance, host, port,
         'version': version,
         'instance': instance,
         'cluster': cluster,
+        'path': path,
     })
 
 
