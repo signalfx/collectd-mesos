@@ -4,6 +4,7 @@
 
 import collectd
 import json
+import os
 import subprocess
 import urllib2
 
@@ -14,15 +15,15 @@ CONFIGS = []
 # FUNCTION: gets the list of stats based on the version of mesos
 def get_stats_string(version):
     if version == "0.19.0" or version == "0.19.1":
-       stats_cur = dict(STATS_MESOS.items() + STATS_MESOS_019.items())
+        stats_cur = dict(STATS_MESOS.items() + STATS_MESOS_019.items())
     elif version == "0.20.0" or version == "0.20.1":
-       stats_cur = dict(STATS_MESOS.items() + STATS_MESOS_020.items())
+        stats_cur = dict(STATS_MESOS.items() + STATS_MESOS_020.items())
     elif version == "0.21.0" or version == "0.21.1":
-       stats_cur = dict(STATS_MESOS.items() + STATS_MESOS_021.items())
+        stats_cur = dict(STATS_MESOS.items() + STATS_MESOS_021.items())
     elif version == "0.22.0" or version == "0.22.1":
-       stats_cur = dict(STATS_MESOS.items() + STATS_MESOS_022.items())
+        stats_cur = dict(STATS_MESOS.items() + STATS_MESOS_022.items())
     else:
-       stats_cur = dict(STATS_MESOS.items() + STATS_MESOS_022.items())
+        stats_cur = dict(STATS_MESOS.items() + STATS_MESOS_022.items())
 
     return stats_cur
 
@@ -79,9 +80,13 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
 
     global MESOS_VERSION
     binary = '%s/%s' % (path, 'mesos-master' if is_master else 'mesos-slave')
-    # Expected output: mesos <version_string>
-    version = subprocess.check_output([binary, '--version'])
-    MESOS_VERSION = version.strip().split()[-1]
+    if os.path.exists(binary):
+        # Expected output: mesos <version_string>
+        version = subprocess.check_output([binary, '--version'])
+        MESOS_VERSION = version.strip().split()[-1]
+    else:
+        version = get_version_from_api(host, port)
+        MESOS_VERSION = version.strip()
 
     log_verbose(verboseLogging,
                 '%s plugin configured with host = %s, port = %s, verbose '
@@ -99,6 +104,17 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
         'cluster': cluster,
         'path': path,
     })
+
+
+def get_version_from_api(host, port):
+    version_api_url = "http://" + host + ":" + str(port) + "/version"
+    try:
+        result = json.load(urllib2.urlopen(version_api_url, timeout=10))
+        return result['version']
+    except urllib2.URLError, e:
+        collectd.error('%s plugin: Error connecting to %s - %r' %
+                       (PREFIX, version_api_url, e))
+        return None
 
 
 def fetch_stats(conf):
