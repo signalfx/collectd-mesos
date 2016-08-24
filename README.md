@@ -26,7 +26,7 @@ Configuration
  * Set the Host and Port values.
  * Place the configuration file in a location that collectd is aware of.
 
-See [10-mesos-master.conf](https://github.com/signalfx/collectd-mesos/blob/master/10-mesos-master.conf) and [10-mesos-slave.conf](https://github.com/signalfx/collectd-mesos/blob/master/10-mesos-slave.conf) as examples.
+See [10-mesos-master.conf](https://github.com/signalfx/integrations/blob/master/collectd-mesos/10-mesos-master.conf) and [10-mesos-slave.conf](https://github.com/signalfx/integrations/blob/master/collectd-mesos/10-mesos-slave.conf) as examples.
 
 Requirements
 ------------
