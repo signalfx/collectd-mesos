@@ -206,6 +206,12 @@ STATS_MESOS_022 = {
     'master/tasks_error': Stat("counter", "master/tasks_error")
 }
 
+# DICT: Mesos 1.0.0, 1.0.1
+STATS_MESOS_100 = {
+    'master/gpus_percent': Stat("percent", "master/gpus_percent"),
+    'master/gpus_total': Stat("gauge", "master/gpus_total"),
+    'master/gpus_used': Stat("gauge", "master/gpus_used")
+}
 
 def configure_callback(conf):
     mesos_collectd.configure_callback(conf, IS_MASTER, PREFIX, MESOS_CLUSTER,
@@ -216,7 +222,7 @@ def configure_callback(conf):
 def read_callback():
     mesos_collectd.read_callback(IS_MASTER, STATS_MESOS, STATS_MESOS_019,
                                  STATS_MESOS_020, STATS_MESOS_021,
-                                 STATS_MESOS_022)
+                                 STATS_MESOS_022, STATS_MESOS_100)
 
 
 collectd.register_config(configure_callback)

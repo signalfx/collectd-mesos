@@ -22,8 +22,10 @@ def get_stats_string(version):
         stats_cur = dict(STATS_MESOS.items() + STATS_MESOS_021.items())
     elif version == "0.22.0" or version == "0.22.1":
         stats_cur = dict(STATS_MESOS.items() + STATS_MESOS_022.items())
+    elif version == "1.0.0" or version == "1.0.1":
+        stats_cur = dict(STATS_MESOS.items() + STATS_MESOS_100.items())
     else:
-        stats_cur = dict(STATS_MESOS.items() + STATS_MESOS_022.items())
+        stats_cur = dict(STATS_MESOS.items() + STATS_MESOS_100.items())
 
     return stats_cur
 
@@ -175,7 +177,7 @@ def dispatch_stat(result, name, key, conf):
 
 
 def read_callback(is_master, stats_mesos, stats_mesos_019, stats_mesos_020,
-                  stats_mesos_021, stats_mesos_022):
+                  stats_mesos_021, stats_mesos_022, stats_mesos_100):
     global IS_MASTER
     IS_MASTER = is_master
     global STATS_MESOS
@@ -188,7 +190,9 @@ def read_callback(is_master, stats_mesos, stats_mesos_019, stats_mesos_020,
     STATS_MESOS_021 = stats_mesos_021
     global STATS_MESOS_022
     STATS_MESOS_022 = stats_mesos_022
-
+    global STATS_MESOS_100
+    STATS_MESOS_100 = stats_mesos_100
+	
     for conf in CONFIGS:
         log_verbose(conf['verboseLogging'], 'Read callback called')
         stats = fetch_stats(conf)
