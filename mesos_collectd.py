@@ -61,6 +61,8 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
     MESOS_URL = url
     global VERBOSE_LOGGING
     VERBOSE_LOGGING = verboseLogging
+    include_system_health = False
+    system_health_url = None
 
     for node in conf.children:
         if node.key == 'Host':
@@ -75,6 +77,8 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
             cluster = node.values[0]
         elif node.key == 'Path':
             path = node.values[0]
+        elif node.key == 'IncludeSystemHealth':
+            include_system_health = node.values[0]
         else:
             collectd.warning('%s plugin: Unknown config key: %s.' %
                              (prefix, node.key))
@@ -90,6 +94,12 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
         version = get_version_from_api(host, port)
         MESOS_VERSION = version.strip()
 
+    if include_system_health:
+        system_health_url = 'http://{0}:1050/system/health/v1'.format(host)
+        log_verbose(verboseLogging,
+                    '%s plugin to include system health metrics from url %s'
+                    % (prefix, system_health_url))
+
     log_verbose(verboseLogging,
                 '%s plugin configured with host = %s, port = %s, verbose '
                 'logging = %s, version = %s, instance = %s, cluster = %s, '
@@ -100,6 +110,7 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
         'host': host,
         'port': port,
         'mesos_url': "http://" + host + ":" + str(port) + "/metrics/snapshot",
+        'system_health_url': system_health_url,
         'verboseLogging': verboseLogging,
         'version': version,
         'instance': instance,
@@ -127,6 +138,51 @@ def fetch_stats(conf):
                        (PREFIX, conf['mesos_url'], e))
         return None
     parse_stats(conf, result)
+
+
+def fetch_system_health(conf):
+    """Fetch system health metrics"""
+    system_health_url = conf['system_health_url']
+    if IS_MASTER and system_health_url is not None:
+        try:
+            result = json.load(urllib2.urlopen(system_health_url, timeout=10))
+            for unit in result['units']:
+                dims = (',system_component=%s,system_component_name=%s' %
+                        (unit['id'], unit['name']))
+                dispatch_system_health(unit['health'],
+                                       'mesos.service.health',
+                                       'gauge', conf, dims)
+
+        except urllib2.URLError, e:
+            collectd.error('%s plugin: Error connecting to %s - %r' %
+                           (PREFIX, system_health_url, e))
+            return None
+
+
+def dispatch_system_health(metric_value, metric_name, metric_type, conf, dims):
+    """Dispatch a system health metric value"""
+    if metric_value is None:
+        log_verbose(conf['verboseLogging'],
+                    '%s plugin: Value not found for %s'
+                    % (PREFIX, metric_name))
+        return
+    log_verbose(conf['verboseLogging'],
+                'Sending value[%s]: %s=%s for instance:%s' %
+                (metric_type, metric_name, metric_value, conf['instance']))
+
+    val = collectd.Values(plugin='mesos')
+    val.type = metric_type
+    val.type_instance = metric_name
+    val.values = [metric_value]
+    plugin_type = 'master'
+    cluster_dimension = ''
+    if conf['cluster']:
+        cluster_dimension = ',cluster=%s' % conf['cluster']
+    val.plugin_instance = ('%s[plugin_type=%s%s%s]' %
+                           (conf['instance'], plugin_type,
+                            cluster_dimension, dims))
+    val.meta = {'0': True}
+    val.dispatch()
 
 
 def parse_stats(conf, json):
@@ -192,10 +248,12 @@ def read_callback(is_master, stats_mesos, stats_mesos_019, stats_mesos_020,
     STATS_MESOS_022 = stats_mesos_022
     global STATS_MESOS_100
     STATS_MESOS_100 = stats_mesos_100
-	
+
     for conf in CONFIGS:
         log_verbose(conf['verboseLogging'], 'Read callback called')
         stats = fetch_stats(conf)
+        if IS_MASTER:
+            fetch_system_health(conf)
 
 
 def dig_it_up(obj, path):
