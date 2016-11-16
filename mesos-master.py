@@ -213,6 +213,48 @@ STATS_MESOS_100 = {
     'master/gpus_used': Stat("gauge", "master/gpus_used")
 }
 
+FRAMEWORK_MESOS = {
+    'framework.used_resources.disk': Stat("gauge", "used_resources.disk"),
+    'framework.used_resources.mem': Stat("gauge", "used_resources.mem"),
+    'framework.used_resources.gpus': Stat("gauge", "used_resources.gpus"),
+    'framework.used_resources.cpus': Stat("gauge", "used_resources.cpus"),
+    'framework.offered_resources.disk': Stat("gauge",
+                                             "offered_resources.disk"),
+    'framework.offered_resources.mem': Stat("gauge",
+                                            "offered_resources.mem"),
+    'framework.offered_resources.gpus': Stat("gauge",
+                                             "offered_resources.gpus"),
+    'framework.offered_resources.cpus': Stat("gauge",
+                                             "offered_resources.cpus"),
+    'framework.resources.disk': Stat("gauge", "resources.disk"),
+    'framework.resources.mem': Stat("gauge", "resources.mem"),
+    'framework.resources.gpus': Stat("gauge", "resources.gpus"),
+    'framework.resources.cpus': Stat("gauge", "resources.cpus"),
+    'framework.is_active': Stat("gauge", "active")
+}
+
+TASK_MESOS = {
+    'task.resources.disk': Stat("gauge", "resources.disk"),
+    'task.resources.mem': Stat("gauge", "resources.mem"),
+    'task.resources.cpus': Stat("gauge", "resources.cpus"),
+    'task.state': Stat("gauge", "state")
+}
+
+DIMENSIONS_MESOS = {
+    "FRAMEWORK": {
+        'mesos_framework_id': 'id',
+        'mesos_framework_name': 'name'
+    },
+    "TASK": {
+        'mesos_framework_id': 'framework_id',
+        'mesos_task_name': 'name',
+        'mesos_agent': 'slave_id',
+        'mesos_task_id': 'id',
+        'container_image': 'container.docker.image'
+    }
+}
+
+
 def configure_callback(conf):
     mesos_collectd.configure_callback(conf, IS_MASTER, PREFIX, MESOS_CLUSTER,
                                       MESOS_INSTANCE, MESOS_PATH, MESOS_HOST,
@@ -222,7 +264,8 @@ def configure_callback(conf):
 def read_callback():
     mesos_collectd.read_callback(IS_MASTER, STATS_MESOS, STATS_MESOS_019,
                                  STATS_MESOS_020, STATS_MESOS_021,
-                                 STATS_MESOS_022, STATS_MESOS_100)
+                                 STATS_MESOS_022, STATS_MESOS_100,
+                                 FRAMEWORK_MESOS, TASK_MESOS, DIMENSIONS_MESOS)
 
 
 collectd.register_config(configure_callback)

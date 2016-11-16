@@ -106,6 +106,7 @@ STATS_MESOS_100 = {
     'slave/gpus_used': Stat("gauge", "slave/gpus_used")
 }
 
+
 def configure_callback(conf):
     mesos_collectd.configure_callback(conf, IS_MASTER, PREFIX, MESOS_CLUSTER,
                                       MESOS_INSTANCE, MESOS_PATH, MESOS_HOST,
