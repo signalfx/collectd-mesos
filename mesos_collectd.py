@@ -30,21 +30,54 @@ def get_stats_string(version):
     return stats_cur
 
 
+# FUNCTION: returns a properly formated string of dimensions from a dictionary
+def _d(d):
+        """Formats a dictionary of key/value pairs as a comma-delimited list of
+        key=value tokens."""
+        return ','.join(['='.join(p) for p in d.items()])
+
+
+# FUNCTION: gets the list of framework metrics based on the version of mesos
+def get_framework_string(version):
+    stats_cur = dict(FRAMEWORK_MESOS.items())
+    return stats_cur
+
+
+# FUNCTION: gets the list of task metrics based on the version of mesos
+def get_task_string(version):
+    stats_cur = dict(TASK_MESOS.items())
+    return stats_cur
+
+
+def get_dimension_string(version):
+    dimensions_cur = dict(DIMENSIONS_MESOS.items())
+    return dimensions_cur
+
+
+def lookup_framework_stat(stat, json, conf):
+    val = dig_it_up(json, get_framework_string(conf['version'])[stat].path)
+    return val
+
+
+def lookup_task_stat(stat, json, conf):
+    val = dig_it_up(json, get_task_string(conf['version'])[stat].path)
+    return val
+
+
 # FUNCTION: Collect stats from JSON result
 def lookup_stat(stat, json, conf):
     val = dig_it_up(json, get_stats_string(conf['version'])[stat].path)
 
     # Check to make sure we have a valid result
-    # dig_it_up returns False if no match found
-    if not isinstance(val, bool):
-        return val
-    else:
-        return None
+    # dig_it_up returns None if no match found
+    return val
 
 
 def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
                        port, url, verboseLogging):
     """Received configuration information"""
+    global ELECTED
+    ELECTED = 0
     global PREFIX
     PREFIX = prefix
     global MESOS_CLUSTER
@@ -110,6 +143,9 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
         'host': host,
         'port': port,
         'mesos_url': "http://" + host + ":" + str(port) + "/metrics/snapshot",
+        'framework_url': ("http://" + host + ":" + str(port) +
+                          "/master/frameworks"),
+        'task_url': "http://" + host + ":" + str(port) + "/master/tasks",
         'system_health_url': system_health_url,
         'verboseLogging': verboseLogging,
         'version': version,
@@ -138,6 +174,26 @@ def fetch_stats(conf):
                        (PREFIX, conf['mesos_url'], e))
         return None
     parse_stats(conf, result)
+
+
+def fetch_framework_stats(conf):
+    try:
+        result = json.load(urllib2.urlopen(conf['framework_url'], timeout=10))
+    except urllib2.URLError, e:
+        collectd.error('%s plugin: Error connecting to %s - %r' %
+                       (PREFIX, conf['framework_url'], e))
+        return None
+    parse_framework_stats(conf, result)
+
+
+def fetch_task_stats(conf):
+    try:
+        result = json.load(urllib2.urlopen(conf['task_url'], timeout=10))
+    except urllib2.URLError, e:
+        collectd.error('%s plugin: Error connecting to %s - %r' %
+                       (PREFIX, conf['framework_url'], e))
+        return None
+    parse_task_stats(conf, result)
 
 
 def fetch_system_health(conf):
@@ -186,15 +242,22 @@ def dispatch_system_health(metric_value, metric_name, metric_type, conf, dims):
 
 
 def parse_stats(conf, json):
+    global ELECTED
     """Parse stats response from Mesos"""
     if IS_MASTER:
         # Ignore stats if coming from non-leading mesos master
         elected_result = lookup_stat('master/elected', json, conf)
+        ELECTED = elected_result
         if elected_result == 1:
             for name, key in get_stats_string(conf['version']).iteritems():
                 result = lookup_stat(name, json, conf)
                 dispatch_stat(result, name, key, conf)
         else:
+            # Always dispatch the election stat from each master
+            dispatch_stat(elected_result,
+                          'master/elected',
+                          get_stats_string(conf['version'])['master/elected'],
+                          conf)
             log_verbose(conf['verboseLogging'],
                         'This mesos master node is not elected leader so not '
                         'writing data.')
@@ -205,12 +268,92 @@ def parse_stats(conf, json):
             dispatch_stat(result, name, key, conf)
 
 
-def dispatch_stat(result, name, key, conf):
+def parse_framework_stats(conf, json):
+    """Parse framework stats responses from Mesos"""
+    global ELECTED
+    if IS_MASTER:
+        # Ignore stats if coming from non-leading mesos master
+        if ELECTED == 1:
+            if 'frameworks' in json:
+                for framework in json['frameworks']:
+                    dimensions = {}
+                    for name, key in get_dimension_string(
+                            conf['version'])["FRAMEWORK"].iteritems():
+                        result = dig_it_up(framework, key)
+                        dimensions[name] = str(result)
+                    for name, key in get_framework_string(
+                            conf['version']).iteritems():
+                        result = lookup_framework_stat(name, framework, conf)
+
+                        # Patch for framework.is_active
+                        if name == 'framework.is_active':
+                            result = int(result)
+                        dispatch_stat(result,
+                                      name,
+                                      key,
+                                      conf,
+                                      dimensions)
+            else:
+                log_verbose(conf['verboseLogging'],
+                            'No framework data was returned by the api')
+        else:
+            log_verbose(conf['verboseLogging'],
+                        'This mesos master node is not elected leader so not '
+                        'writing framework data.')
+
+
+def parse_task_stats(conf, json):
+    """Parse task stats responses from Mesos"""
+    global ELECTED
+    state_mapping = {
+        'TASK_RUNNING': 0,
+        'TASK_FINISHED': 1,
+        'TASK_STAGING': 2,
+        'TASK_STARTING': 3,
+        'TASK_KILLING': 4,
+        'TASK_LOST': 5,
+        'TASK_KILLED': 6,
+        'TASK_FAILED': 7,
+        'TASK_ERROR': 8
+    }
+    if IS_MASTER:
+        # Ignore stats if coming from non-leading mesos master
+        if ELECTED == 1:
+            if 'tasks' in json:
+                for task in json['tasks']:
+                    dimensions = {}
+                    for name, key in get_dimension_string(
+                                conf['version'])['TASK'].iteritems():
+                        result = dig_it_up(task, key)
+                        dimensions[name] = str(result)
+                    for name, key in get_task_string(
+                            conf['version']).iteritems():
+                        result = lookup_task_stat(name, task, conf)
+
+                        # Patch for task.state
+                        if name == 'task.state':
+                            if result in state_mapping:
+                                result = state_mapping[result]
+                            else:
+                                result = 9
+                        dispatch_stat(result, name, key, conf, dimensions)
+            else:
+                log_verbose(conf['verboseLogging'],
+                            'No task data was returned by the api')
+        else:
+            log_verbose(conf['verboseLogging'],
+                        'This mesos master node is not elected leader so not '
+                        'writing task data.')
+
+
+def dispatch_stat(result, name, key, conf, dimensions=None):
     """Read a key from info response data and dispatch a value"""
     if result is None:
         log_verbose(conf['verboseLogging'],
                     '%s plugin: Value not found for %s' % (PREFIX, name))
         return
+    if dimensions is None:
+        dimensions = {}
     estype = key.type
     value = result
     log_verbose(conf['verboseLogging'],
@@ -221,19 +364,22 @@ def dispatch_stat(result, name, key, conf):
     val.type = estype
     val.type_instance = name
     val.values = [value]
-    plugin_type = 'master' if IS_MASTER else 'slave'
-    cluster_dimension = ''
+    dimensions['plugin_type'] = 'master' if IS_MASTER else 'slave'
+    dimensions['cluster'] = ''
     if conf['cluster']:
-        cluster_dimension = ',cluster=%s' % conf['cluster']
-    val.plugin_instance = ('%s[plugin_type=%s%s]' %
-                           (conf['instance'], plugin_type, cluster_dimension))
+        dimensions['cluster'] = conf['cluster']
+    val.plugin_instance = "{instance}[{dims}]".format(
+                                                instance=conf['instance'],
+                                                dims=_d(dimensions))
     # https://github.com/collectd/collectd/issues/716
     val.meta = {'0': True}
     val.dispatch()
 
 
 def read_callback(is_master, stats_mesos, stats_mesos_019, stats_mesos_020,
-                  stats_mesos_021, stats_mesos_022, stats_mesos_100):
+                  stats_mesos_021, stats_mesos_022, stats_mesos_100,
+                  framework_mesos=None, task_mesos=None,
+                  dimensions_mesos=None):
     global IS_MASTER
     IS_MASTER = is_master
     global STATS_MESOS
@@ -248,12 +394,20 @@ def read_callback(is_master, stats_mesos, stats_mesos_019, stats_mesos_020,
     STATS_MESOS_022 = stats_mesos_022
     global STATS_MESOS_100
     STATS_MESOS_100 = stats_mesos_100
+    global FRAMEWORK_MESOS
+    FRAMEWORK_MESOS = framework_mesos
+    global TASK_MESOS
+    TASK_MESOS = task_mesos
+    global DIMENSIONS_MESOS
+    DIMENSIONS_MESOS = dimensions_mesos
 
     for conf in CONFIGS:
         log_verbose(conf['verboseLogging'], 'Read callback called')
-        stats = fetch_stats(conf)
+        fetch_stats(conf)
         if IS_MASTER:
             fetch_system_health(conf)
+            fetch_framework_stats(conf)
+            fetch_task_stats(conf)
 
 
 def dig_it_up(obj, path):
@@ -262,7 +416,7 @@ def dig_it_up(obj, path):
             path = path.split('.')
         return reduce(lambda x, y: x[y], path, obj)
     except:
-        return False
+        return None
 
 
 def log_verbose(enabled, msg):
