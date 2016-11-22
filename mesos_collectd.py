@@ -25,7 +25,7 @@ def get_stats_string(version):
     elif version == "1.0.0" or version == "1.0.1":
         stats_cur = dict(STATS_MESOS.items() + STATS_MESOS_100.items())
     else:
-        stats_cur = dict(STATS_MESOS.items() + STATS_MESOS_100.items())
+        stats_cur = dict(STATS_MESOS.items() + STATS_MESOS_022.items())
 
     return stats_cur
 
