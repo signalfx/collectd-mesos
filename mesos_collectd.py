@@ -134,11 +134,11 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
             continue
 
     # Relevant only when monitoring mesos hosting DC/OS in strict mode
-    dcos_auth_token = None
+    dcos_auth_token = ''
     dcos_auth_header = {}
     if dcos_sfx_username and dcos_sfx_password:
         http_prefix = 'https://'
-        dcos_auth_token = get_dcos_auth_token(dcos_sfx_username, dcos_sfx_password, host, master_url)
+        # dcos_auth_token = get_dcos_auth_token(dcos_sfx_username, dcos_sfx_password, host, master_url)
         dcos_auth_header = {'Authorization': ('token=%s' % (str(dcos_auth_token)))}
 
     ssl_context = ssl.create_default_context(cafile=ca_file_path) if ca_file_path else ssl._create_unverified_context()
@@ -278,17 +278,25 @@ def make_api_call(url, conf, context, headers, data):
         collectd.info(str(req.header_items()))
         response = urllib2.urlopen(req, context=context)
         return response
-    except (urllib2.URLError), e:
-        if e.reason == 401:
-            collectd.info('INFO: Refreshing DC/OS authentication token.')
-            conf['dcos_auth_token'] = get_dcos_auth_token(conf['dcos_sfx_username'],
-                                                          conf['dcos_sfx_password'],
-                                                          conf['host'],
-                                                          conf['master_url'])
+    except urllib2.HTTPError, e:
+        try:
+            if e.code == 401:
+                collectd.info('INFO: Refreshing DC/OS authentication token.')
+                refresh_dcos_auth_token(conf)
+        except:
+            pass
         else:
             collectd.error("ERROR: API call failed: (%s) %s" % (e, url))
 
 
+def refresh_dcos_auth_token(conf):
+    collectd.info(str(conf))
+    token = get_dcos_auth_token(conf['dcos_sfx_username'], conf['dcos_sfx_password'],
+                                                  conf['host'], conf['master_url'])
+    conf['dcos_auth_token'] = token
+    conf['dcos_auth_header'] = {'Authorization': ('token=%s' % (str(token)))}
+
+    collectd.info(str(conf))
 
 
 def dispatch_system_health(metric_value, metric_name, metric_type, conf, dims):
