@@ -5,6 +5,7 @@
 import collectd
 import json
 import os
+import ssl
 import subprocess
 import urllib2
 
@@ -96,6 +97,14 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
     VERBOSE_LOGGING = verboseLogging
     include_system_health = False
     system_health_url = None
+    http_prefix = None
+    ssl_verify = False
+    ssl_ca_path = None
+    dcos_sfx_username = None
+    dcos_sfx_password = None
+    dcos_auth_token = None
+    master_url = None
+
 
     for node in conf.children:
         if node.key == 'Host':
@@ -112,20 +121,42 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
             path = node.values[0]
         elif node.key == 'IncludeSystemHealth':
             include_system_health = node.values[0]
+        elif node.key == 'ssl_enabled':
+            http_prefix = 'https://' if node.values[0] else 'http://'
+        elif node.key == 'ssl_verify':
+            ssl_verify = node.values[0]
+        elif node.key == 'ssl_ca_path':
+            ssl_ca_path = node.values[0]
+        elif node.key == 'dcos_sfx_username':
+            dcos_sfx_username = node.values[0]
+        elif node.key == 'dcos_sfx_password':
+            dcos_sfx_password = node.values[0]
+        elif node.key == 'master_url':
+            master_url = node.values[0]
         else:
             collectd.warning('%s plugin: Unknown config key: %s.' %
                              (prefix, node.key))
             continue
 
+    # Relevant only when monitoring mesos hosting DC/OS in strict mode
+    if dcos_sfx_username and dcos_sfx_password:
+        dcos_auth_token = get_dcos_auth_token(dcos_sfx_username, dcos_sfx_password,
+                                              http_prefix, host, master_url)
+
     global MESOS_VERSION
     binary = '%s/%s' % (path, 'mesos-master' if is_master else 'mesos-slave')
-    if os.path.exists(binary):
-        # Expected output: mesos <version_string>
-        version = subprocess.check_output([binary, '--version'])
-        MESOS_VERSION = version.strip().split()[-1]
-    else:
-        version = get_version_from_api(host, port)
-        MESOS_VERSION = version.strip()
+    version = None
+    try:
+        if os.path.exists(binary):
+            # Expected output: mesos <version_string>
+            version = subprocess.check_output([binary, '--version'])
+            MESOS_VERSION = version.strip().split()[-1]
+        else:
+            version = get_version_from_api(host, port, http_prefix, ssl_ca_path,
+                                                                        dcos_auth_token)
+            MESOS_VERSION = version.strip()
+    except AttributeError, e:
+        collectd.error("Mesos version not obtained (%s)." % (e));
 
     if include_system_health:
         system_health_url = 'http://{0}:1050/system/health/v1'.format(host)
@@ -142,66 +173,80 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
     CONFIGS.append({
         'host': host,
         'port': port,
-        'mesos_url': "http://" + host + ":" + str(port) + "/metrics/snapshot",
-        'framework_url': ("http://" + host + ":" + str(port) +
+        'mesos_url': http_prefix + host + ":" + str(port) + "/metrics/snapshot",
+        'framework_url': (http_prefix + host + ":" + str(port) +
                           "/master/frameworks"),
-        'task_url': "http://" + host + ":" + str(port) + "/master/tasks",
+        'task_url': http_prefix + host + ":" + str(port) + "/master/tasks",
         'system_health_url': system_health_url,
         'verboseLogging': verboseLogging,
         'version': version,
         'instance': instance,
         'cluster': cluster,
         'path': path,
+        'ssl_verify': ssl_verify,
+        'ssl_ca_path': ssl_ca_path,
+        'dcos_auth_token': dcos_auth_token,
+        'http_prefix': http_prefix,
+        'dcos_sfx_username': dcos_sfx_username,
+        'dcos_sfx_password': dcos_sfx_password,
+        'master_url': master_url
     })
 
 
-def get_version_from_api(host, port):
-    version_api_url = "http://" + host + ":" + str(port) + "/version"
+def get_dcos_auth_token(uid, password, http_prefix, host, master_url):
     try:
-        result = json.load(urllib2.urlopen(version_api_url, timeout=10))
+        headers = {"Content-Type":"application/json"}
+        data = ('{"uid":"%s","password":"%s"}' % (uid, password))
+        if master_url:
+            url = ('%s/acs/api/v1/auth/login' % (master_url))
+        else:
+            url = ('%s%s/acs/api/v1/auth/login' % (http_prefix, host))
+        request = urllib2.Request(url, headers=headers, data=str(data))
+        response = urllib2.urlopen(request, context=ssl._create_unverified_context())
+        collectd.info('GETTING TOKEN')
+        try:
+            json_response = json.load(response)
+            collectd.info(json_response['token'])
+            return json_response['token']
+        except (KeyError, ValueError), e:
+            collectd.error('ERROR: Token not refreshed (%s) %s' % (e, url));
+    except (urllib2.HTTPError, urllib2.URLError), e:
+        collectd.error("ERROR: API call failed: (%s) %s" % (e, url))
+
+
+
+def get_version_from_api(host, port, http_prefix, ssl_ca_path, dcos_auth_token):
+    version_api_url = http_prefix + host + ":" + str(port) + "/version"
+    result = get_json(version_api_url, {'ssl_ca_path' : ssl_ca_path,
+                                        'dcos_auth_token' : dcos_auth_token})
+    if result:
         return result['version']
-    except urllib2.URLError, e:
-        collectd.error('%s plugin: Error connecting to %s - %r' %
-                       (PREFIX, version_api_url, e))
-        return None
 
 
 def fetch_stats(conf):
-    try:
-        result = json.load(urllib2.urlopen(conf['mesos_url'], timeout=10))
-    except urllib2.URLError, e:
-        collectd.error('%s plugin: Error connecting to %s - %r' %
-                       (PREFIX, conf['mesos_url'], e))
-        return None
-    parse_stats(conf, result)
+    result = get_json(conf['mesos_url'], conf)
+    if result:
+        parse_stats(conf, result)
 
 
 def fetch_framework_stats(conf):
-    try:
-        result = json.load(urllib2.urlopen(conf['framework_url'], timeout=10))
-    except urllib2.URLError, e:
-        collectd.error('%s plugin: Error connecting to %s - %r' %
-                       (PREFIX, conf['framework_url'], e))
-        return None
-    parse_framework_stats(conf, result)
+    result = get_json(conf['framework_url'], conf)
+    if result:
+        parse_stats(conf, result)
 
 
 def fetch_task_stats(conf):
-    try:
-        result = json.load(urllib2.urlopen(conf['task_url'], timeout=10))
-    except urllib2.URLError, e:
-        collectd.error('%s plugin: Error connecting to %s - %r' %
-                       (PREFIX, conf['framework_url'], e))
-        return None
-    parse_task_stats(conf, result)
+    result = get_json(conf['task_url'], conf)
+    if result:
+        parse_task_stats(conf, result)
 
 
 def fetch_system_health(conf):
     """Fetch system health metrics"""
     system_health_url = conf['system_health_url']
     if IS_MASTER and system_health_url is not None:
-        try:
-            result = json.load(urllib2.urlopen(system_health_url, timeout=10))
+        result = get_json(system_health_url, conf)
+        if result:
             for unit in result['units']:
                 dims = (',system_component=%s,system_component_name=%s' %
                         (unit['id'], unit['name']))
@@ -209,10 +254,39 @@ def fetch_system_health(conf):
                                        'mesos.service.health',
                                        'gauge', conf, dims)
 
-        except urllib2.URLError, e:
-            collectd.error('%s plugin: Error connecting to %s - %r' %
-                           (PREFIX, system_health_url, e))
-            return None
+
+def get_json(url, conf):
+    '''
+    Makes the API call and prepares the json to be returned
+    '''
+    response = make_api_call(url, conf)
+    try:
+        if response:
+            return json.load(response)
+    except ValueError, e:
+        collectd.error('ERROR: JSON parsing failed: (%s) %s' % (e, url))
+
+
+def make_api_call(url, conf):
+    collectd.debug("GETTING THIS  URL %s" % url)
+    try:
+        header = {'Authorization': ('token=%s' % (str(conf['dcos_auth_token'])))}
+        req = urllib2.Request(url, headers=header)
+        collectd.info(str(req.header_items()))
+        response = urllib2.urlopen(req, cafile=conf['ssl_ca_path'])
+        return response
+    except (urllib2.HTTPError, urllib2.URLError), e:
+        if e.code == 401:
+            collectd.info('INFO: Refreshing DC/OS authentication token.')
+            conf['dcos_auth_token'] = get_dcos_auth_token(conf['dcos_sfx_username'],
+                                                          conf['dcos_sfx_password'],
+                                                          conf['http_prefix'],
+                                                          conf['host'],
+                                                          conf['master_url'])
+        else:
+            collectd.error("ERROR: API call failed: (%s) %s" % (e, url))
+
+
 
 
 def dispatch_system_health(metric_value, metric_name, metric_type, conf, dims):
