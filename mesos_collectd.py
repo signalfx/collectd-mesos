@@ -138,7 +138,7 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
     dcos_auth_header = {}
     if dcos_sfx_username and dcos_sfx_password:
         scheme = 'https://'
-        # dcos_auth_token = get_dcos_auth_token(dcos_sfx_username, dcos_sfx_password, host, master_url)
+        dcos_auth_token = get_dcos_auth_token(dcos_sfx_username, dcos_sfx_password, host, master_url)
         dcos_auth_header = {'Authorization': ('token=%s' % (str(dcos_auth_token)))}
 
     ssl_context = ssl.create_default_context(cafile=ca_file_path) if ca_file_path else ssl._create_unverified_context()
@@ -162,7 +162,7 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
         collectd.error("Mesos version not obtained (%s)." % (e));
 
     if include_system_health:
-        system_health_url = 'http://{0}:1050/system/health/v1'.format(host)
+        system_health_url = '{0}{1}:1050/system/health/v1'.format(scheme, host)
         log_verbose(verboseLogging,
                     '%s plugin to include system health metrics from url %s'
                     % (prefix, system_health_url))
@@ -249,7 +249,7 @@ def fetch_system_health(conf):
     """Fetch system health metrics"""
     system_health_url = conf['system_health_url']
     if IS_MASTER and system_health_url:
-        result = get_json(system_health_url, conf, conf['ssl_context'])
+        result = get_json(system_health_url, conf, conf['ssl_context'], headers=conf['dcos_auth_header'])
         if result:
             for unit in result['units']:
                 dims = (',system_component=%s,system_component_name=%s' %
@@ -272,10 +272,8 @@ def get_json(url, conf, context, headers={}, data=''):
 
 
 def make_api_call(url, conf, context, headers, data):
-    collectd.info("GETTING THIS  URL %s" % url)
     try:
         req = urllib2.Request(url, headers=headers, data=data)
-        collectd.info(str(req.header_items()))
         response = urllib2.urlopen(req, context=context)
         return response
     except urllib2.HTTPError, e:
@@ -293,13 +291,10 @@ def make_api_call(url, conf, context, headers, data):
 
 def refresh_dcos_auth_token(conf):
     try:
-        collectd.info(str(conf))
         token = get_dcos_auth_token(conf['dcos_sfx_username'], conf['dcos_sfx_password'],
                                                       conf['host'], conf['master_url'])
         conf['dcos_auth_token'] = token
         conf['dcos_auth_header'] = {'Authorization': ('token=%s' % (str(token)))}
-
-        collectd.info(str(conf))
     except Exception, e:
         collectd.error("Refreshing token failed (%s)." % (e))
 
