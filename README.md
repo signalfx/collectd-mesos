@@ -11,6 +11,8 @@ Statistics:
  * Task statistics (finished, lost, failed)
  * Many more...
 
+See [here](https://github.com/signalfx/integrations/tree/release/collectd-mesos) for updated usage instructions.
+
 Install
 -------
  1. Download the plugin.
