@@ -97,13 +97,12 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
     VERBOSE_LOGGING = verboseLogging
     include_system_health = False
     system_health_url = None
-    http_prefix = None
-    ssl_verify = False
-    ssl_ca_path = None
+    http_prefix = 'http://'
     dcos_sfx_username = None
     dcos_sfx_password = None
     dcos_auth_token = None
     master_url = None
+    ca_file_path = None
 
 
     for node in conf.children:
@@ -121,27 +120,29 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
             path = node.values[0]
         elif node.key == 'IncludeSystemHealth':
             include_system_health = node.values[0]
-        elif node.key == 'ssl_enabled':
-            http_prefix = 'https://' if node.values[0] else 'http://'
-        elif node.key == 'ssl_verify':
-            ssl_verify = node.values[0]
-        elif node.key == 'ssl_ca_path':
-            ssl_ca_path = node.values[0]
         elif node.key == 'dcos_sfx_username':
             dcos_sfx_username = node.values[0]
         elif node.key == 'dcos_sfx_password':
             dcos_sfx_password = node.values[0]
         elif node.key == 'master_url':
             master_url = node.values[0]
+        elif node.key == 'ca_file_path':
+            ca_file_path = node.values[0]
         else:
             collectd.warning('%s plugin: Unknown config key: %s.' %
                              (prefix, node.key))
             continue
 
     # Relevant only when monitoring mesos hosting DC/OS in strict mode
+    dcos_auth_token = None
+    dcos_auth_header = {}
     if dcos_sfx_username and dcos_sfx_password:
-        dcos_auth_token = get_dcos_auth_token(dcos_sfx_username, dcos_sfx_password,
-                                              http_prefix, host, master_url)
+        http_prefix = 'https://'
+        dcos_auth_token = get_dcos_auth_token(dcos_sfx_username, dcos_sfx_password, host, master_url)
+        dcos_auth_header = {'Authorization': ('token=%s' % (str(dcos_auth_token)))}
+
+    ssl_context = ssl.create_default_context(cafile=ca_file_path) if ca_file_path else ssl._create_unverified_context()
+
 
     global MESOS_VERSION
     binary = '%s/%s' % (path, 'mesos-master' if is_master else 'mesos-slave')
@@ -152,8 +153,10 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
             version = subprocess.check_output([binary, '--version'])
             MESOS_VERSION = version.strip().split()[-1]
         else:
-            version = get_version_from_api(host, port, http_prefix, ssl_ca_path,
-                                                                        dcos_auth_token)
+            version_api_url = http_prefix + host + ":" + str(port) + "/version"
+            version = get_version_from_api(version_api_url, {'dcos_auth_token' : dcos_auth_token,
+                                                             'ssl_context': ssl_context,
+                                                             'dcos_auth_header': dcos_auth_header})
             MESOS_VERSION = version.strip()
     except AttributeError, e:
         collectd.error("Mesos version not obtained (%s)." % (e));
@@ -183,60 +186,61 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
         'instance': instance,
         'cluster': cluster,
         'path': path,
-        'ssl_verify': ssl_verify,
-        'ssl_ca_path': ssl_ca_path,
-        'dcos_auth_token': dcos_auth_token,
         'http_prefix': http_prefix,
         'dcos_sfx_username': dcos_sfx_username,
         'dcos_sfx_password': dcos_sfx_password,
-        'master_url': master_url
+        'dcos_auth_token': dcos_auth_token,
+        'master_url': master_url,
+        'dcos_auth_header': dcos_auth_header,
+        'ca_file_path': ca_file_path,
+        'ssl_context': ssl_context
     })
 
-
-def get_dcos_auth_token(uid, password, http_prefix, host, master_url):
+def get_dcos_auth_token(uid, password, host, master_url):
     try:
+        collectd.info('INFO: Getting DC/OS authentication token.')
         headers = {"Content-Type":"application/json"}
         data = ('{"uid":"%s","password":"%s"}' % (uid, password))
         if master_url:
             url = ('%s/acs/api/v1/auth/login' % (master_url))
         else:
-            url = ('%s%s/acs/api/v1/auth/login' % (http_prefix, host))
-        request = urllib2.Request(url, headers=headers, data=str(data))
-        response = urllib2.urlopen(request, context=ssl._create_unverified_context())
-        collectd.info('GETTING TOKEN')
-        try:
-            json_response = json.load(response)
-            collectd.info(json_response['token'])
-            return json_response['token']
-        except (KeyError, ValueError), e:
-            collectd.error('ERROR: Token not refreshed (%s) %s' % (e, url));
+            url = ('https://%s/acs/api/v1/auth/login' % (host))
+        context=ssl._create_unverified_context()
+        conf = {
+            'dcos_sfx_username': uid,
+            'dcos_sfx_password': password,
+            'host': host,
+            'master_url': master_url
+        }
+        response = get_json(url, conf, context, headers, data)
+        return response['token']
     except (urllib2.HTTPError, urllib2.URLError), e:
-        collectd.error("ERROR: API call failed: (%s) %s" % (e, url))
+        collectd.error("ERROR: Getting DC/OS authentication token failed: (%s)." % (e))
 
 
-
-def get_version_from_api(host, port, http_prefix, ssl_ca_path, dcos_auth_token):
-    version_api_url = http_prefix + host + ":" + str(port) + "/version"
-    result = get_json(version_api_url, {'ssl_ca_path' : ssl_ca_path,
-                                        'dcos_auth_token' : dcos_auth_token})
+def get_version_from_api(url, conf):
+    result = get_json(url, conf, conf['ssl_context'], headers=conf['dcos_auth_header'])
     if result:
         return result['version']
 
 
 def fetch_stats(conf):
-    result = get_json(conf['mesos_url'], conf)
+    result = get_json(conf['mesos_url'], conf,
+                      conf['ssl_context'], headers=conf['dcos_auth_header'])
     if result:
         parse_stats(conf, result)
 
 
 def fetch_framework_stats(conf):
-    result = get_json(conf['framework_url'], conf)
+    result = get_json(conf['framework_url'], conf,
+                      conf['ssl_context'], headers=conf['dcos_auth_header'])
     if result:
         parse_stats(conf, result)
 
 
 def fetch_task_stats(conf):
-    result = get_json(conf['task_url'], conf)
+    result = get_json(conf['task_url'], conf,
+                      conf['ssl_context'], headers=conf['dcos_auth_header'])
     if result:
         parse_task_stats(conf, result)
 
@@ -245,7 +249,7 @@ def fetch_system_health(conf):
     """Fetch system health metrics"""
     system_health_url = conf['system_health_url']
     if IS_MASTER and system_health_url is not None:
-        result = get_json(system_health_url, conf)
+        result = get_json(system_health_url, conf, None)
         if result:
             for unit in result['units']:
                 dims = (',system_component=%s,system_component_name=%s' %
@@ -255,11 +259,11 @@ def fetch_system_health(conf):
                                        'gauge', conf, dims)
 
 
-def get_json(url, conf):
+def get_json(url, conf, context, headers={}, data=''):
     '''
     Makes the API call and prepares the json to be returned
     '''
-    response = make_api_call(url, conf)
+    response = make_api_call(url, conf, context, headers, data)
     try:
         if response:
             return json.load(response)
@@ -267,20 +271,18 @@ def get_json(url, conf):
         collectd.error('ERROR: JSON parsing failed: (%s) %s' % (e, url))
 
 
-def make_api_call(url, conf):
-    collectd.debug("GETTING THIS  URL %s" % url)
+def make_api_call(url, conf, context, headers, data):
+    collectd.info("GETTING THIS  URL %s" % url)
     try:
-        header = {'Authorization': ('token=%s' % (str(conf['dcos_auth_token'])))}
-        req = urllib2.Request(url, headers=header)
+        req = urllib2.Request(url, headers=headers, data=data)
         collectd.info(str(req.header_items()))
-        response = urllib2.urlopen(req, cafile=conf['ssl_ca_path'])
+        response = urllib2.urlopen(req, context=context)
         return response
-    except (urllib2.HTTPError, urllib2.URLError), e:
-        if e.code == 401:
+    except (urllib2.URLError), e:
+        if e.reason == 401:
             collectd.info('INFO: Refreshing DC/OS authentication token.')
             conf['dcos_auth_token'] = get_dcos_auth_token(conf['dcos_sfx_username'],
                                                           conf['dcos_sfx_password'],
-                                                          conf['http_prefix'],
                                                           conf['host'],
                                                           conf['master_url'])
         else:
