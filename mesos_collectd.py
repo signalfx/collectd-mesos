@@ -97,7 +97,7 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
     VERBOSE_LOGGING = verboseLogging
     include_system_health = False
     system_health_url = None
-    http_prefix = 'http://'
+    scheme = 'http://'
     dcos_sfx_username = None
     dcos_sfx_password = None
     dcos_auth_token = None
@@ -137,7 +137,7 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
     dcos_auth_token = ''
     dcos_auth_header = {}
     if dcos_sfx_username and dcos_sfx_password:
-        http_prefix = 'https://'
+        scheme = 'https://'
         # dcos_auth_token = get_dcos_auth_token(dcos_sfx_username, dcos_sfx_password, host, master_url)
         dcos_auth_header = {'Authorization': ('token=%s' % (str(dcos_auth_token)))}
 
@@ -153,7 +153,7 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
             version = subprocess.check_output([binary, '--version'])
             MESOS_VERSION = version.strip().split()[-1]
         else:
-            version_api_url = http_prefix + host + ":" + str(port) + "/version"
+            version_api_url = scheme + host + ":" + str(port) + "/version"
             version = get_version_from_api(version_api_url, {'dcos_auth_token' : dcos_auth_token,
                                                              'ssl_context': ssl_context,
                                                              'dcos_auth_header': dcos_auth_header})
@@ -176,17 +176,17 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
     CONFIGS.append({
         'host': host,
         'port': port,
-        'mesos_url': http_prefix + host + ":" + str(port) + "/metrics/snapshot",
-        'framework_url': (http_prefix + host + ":" + str(port) +
+        'mesos_url': scheme + host + ":" + str(port) + "/metrics/snapshot",
+        'framework_url': (scheme + host + ":" + str(port) +
                           "/master/frameworks"),
-        'task_url': http_prefix + host + ":" + str(port) + "/master/tasks",
+        'task_url': scheme + host + ":" + str(port) + "/master/tasks",
         'system_health_url': system_health_url,
         'verboseLogging': verboseLogging,
         'version': version,
         'instance': instance,
         'cluster': cluster,
         'path': path,
-        'http_prefix': http_prefix,
+        'scheme': scheme,
         'dcos_sfx_username': dcos_sfx_username,
         'dcos_sfx_password': dcos_sfx_password,
         'dcos_auth_token': dcos_auth_token,
@@ -200,7 +200,7 @@ def get_dcos_auth_token(uid, password, host, master_url):
     try:
         collectd.info('INFO: Getting DC/OS authentication token.')
         headers = {"Content-Type":"application/json"}
-        data = ('{"uid":"%s","password":"%s"}' % (uid, password))
+        data = json.dumps({"uid":uid,"password":password})
         if master_url:
             url = ('%s/acs/api/v1/auth/login' % (master_url))
         else:
@@ -248,8 +248,8 @@ def fetch_task_stats(conf):
 def fetch_system_health(conf):
     """Fetch system health metrics"""
     system_health_url = conf['system_health_url']
-    if IS_MASTER and system_health_url is not None:
-        result = get_json(system_health_url, conf, None)
+    if IS_MASTER and system_health_url:
+        result = get_json(system_health_url, conf, conf['ssl_context'])
         if result:
             for unit in result['units']:
                 dims = (',system_component=%s,system_component_name=%s' %
@@ -287,16 +287,21 @@ def make_api_call(url, conf, context, headers, data):
             pass
         else:
             collectd.error("ERROR: API call failed: (%s) %s" % (e, url))
+    except urllib2.URLError, e:
+        collectd.error("ERROR: API call failed: (%s) %s" % (e, url))
 
 
 def refresh_dcos_auth_token(conf):
-    collectd.info(str(conf))
-    token = get_dcos_auth_token(conf['dcos_sfx_username'], conf['dcos_sfx_password'],
-                                                  conf['host'], conf['master_url'])
-    conf['dcos_auth_token'] = token
-    conf['dcos_auth_header'] = {'Authorization': ('token=%s' % (str(token)))}
+    try:
+        collectd.info(str(conf))
+        token = get_dcos_auth_token(conf['dcos_sfx_username'], conf['dcos_sfx_password'],
+                                                      conf['host'], conf['master_url'])
+        conf['dcos_auth_token'] = token
+        conf['dcos_auth_header'] = {'Authorization': ('token=%s' % (str(token)))}
 
-    collectd.info(str(conf))
+        collectd.info(str(conf))
+    except Exception, e:
+        collectd.error("Refreshing token failed (%s)." % (e))
 
 
 def dispatch_system_health(metric_value, metric_name, metric_type, conf, dims):
