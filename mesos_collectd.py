@@ -100,7 +100,7 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
     scheme = 'http'
     dcos_sfx_username = None
     dcos_sfx_password = None
-    dcos_auth_token = None
+    dcos_url = None
     ca_file_path = None
 
 
@@ -127,6 +127,8 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
             scheme = node.values[0]
         elif node.key == 'ca_file_path':
             ca_file_path = node.values[0]
+        elif node.key == 'dcos_url':
+            dcos_url = node.values[0]
         else:
             collectd.warning('%s plugin: Unknown config key: %s.' %
                              (prefix, node.key))
@@ -135,10 +137,9 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
     # Relevant only when monitoring mesos hosting DC/OS in strict mode
     dcos_auth_token = ''
     dcos_auth_header = {}
-    dcos_url = None
     if dcos_sfx_username and dcos_sfx_password and scheme == 'https':
         collectd.info("Configuring Mesos plugin to operate in DC/OS strict mode.")
-        dcos_url = 'https://leader.mesos/acs/api/v1/auth/login'
+        dcos_url = dcos_url or 'https://leader.mesos/acs/api/v1/auth/login'
         dcos_auth_token = get_dcos_auth_token(dcos_sfx_username, dcos_sfx_password, host, dcos_url)
         dcos_auth_header = {'Authorization': ('token=%s' % (str(dcos_auth_token)))}
 
