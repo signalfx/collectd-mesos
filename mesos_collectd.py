@@ -140,7 +140,7 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
     if dcos_sfx_username and dcos_sfx_password and scheme == 'https':
         collectd.info("Configuring Mesos plugin to operate in DC/OS strict mode.")
         dcos_url = dcos_url or 'https://leader.mesos/acs/api/v1/auth/login'
-        dcos_auth_token = get_dcos_auth_token(dcos_sfx_username, dcos_sfx_password, host, dcos_url)
+        dcos_auth_token = get_dcos_auth_token(dcos_sfx_username, dcos_sfx_password, host, dcos_url, True)
         dcos_auth_header = {'Authorization': ('token=%s' % (str(dcos_auth_token)))}
 
     ssl_context = ssl.create_default_context(cafile=ca_file_path) if ca_file_path else ssl._create_unverified_context()
@@ -196,13 +196,12 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
         'dcos_url': dcos_url,
         'dcos_auth_header': dcos_auth_header,
         'ca_file_path': ca_file_path,
-        'ssl_context': ssl_context,
-        'logged_redirect_error' : False
+        'ssl_context': ssl_context
     })
 
-def get_dcos_auth_token(uid, password, host, dcos_url):
+def get_dcos_auth_token(uid, password, host, dcos_url, verbose_log):
     try:
-        collectd.info('INFO: Getting DC/OS authentication token.')
+        log_verbose(verbose_log, 'INFO: Getting DC/OS authentication token.')
         headers = {"Content-Type":"application/json"}
         data = json.dumps({"uid":uid,"password":password})
         if not dcos_url:
@@ -283,12 +282,12 @@ def make_api_call(url, conf, context, headers, data):
         return response
     except urllib2.HTTPError, e:
         try:
-            if e.code == 401:
-                collectd.info('INFO: Refreshing DC/OS authentication token.')
+            if e.code == 401 and conf.get('dcos_url', None):
+                log_verbose(conf.get('Verbose', False), 'INFO: Refreshing DC/OS authentication token.')
                 refresh_dcos_auth_token(conf)
-            elif e.code == 307 and 'logged_redirect_error' in conf and not conf['logged_redirect_error']:
-                conf['logged_redirect_error'] = True
-                collectd.info('INFO: Skipping API call to %s because this master is not the leader (%s).' % (url, e))
+            elif e.code == 307 and conf.get('dcos_url', None):
+                log_verbose(conf.get('Verbose', False),
+                            'INFO: Skipping API call to %s because this master is not the leader (%s).' % (url, e))
             else:
                 collectd.error("ERROR: API call failed: (%s) %s" % (e, url))
         except:
@@ -300,7 +299,7 @@ def make_api_call(url, conf, context, headers, data):
 def refresh_dcos_auth_token(conf):
     try:
         token = get_dcos_auth_token(conf['dcos_sfx_username'], conf['dcos_sfx_password'],
-                                                      conf['host'], conf['dcos_url'])
+                                                      conf['host'], conf['dcos_url'], conf.get('Verbose', False))
         conf['dcos_auth_token'] = token
         conf['dcos_auth_header'] = {'Authorization': ('token=%s' % (str(token)))}
     except Exception, e:
