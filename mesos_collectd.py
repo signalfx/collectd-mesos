@@ -97,11 +97,10 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
     VERBOSE_LOGGING = verboseLogging
     include_system_health = False
     system_health_url = None
-    scheme = 'http://'
+    scheme = 'http'
     dcos_sfx_username = None
     dcos_sfx_password = None
-    dcos_auth_token = None
-    master_url = None
+    dcos_url = None
     ca_file_path = None
 
 
@@ -124,10 +123,12 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
             dcos_sfx_username = node.values[0]
         elif node.key == 'dcos_sfx_password':
             dcos_sfx_password = node.values[0]
-        elif node.key == 'master_url':
-            master_url = node.values[0]
+        elif node.key == 'scheme':
+            scheme = node.values[0]
         elif node.key == 'ca_file_path':
             ca_file_path = node.values[0]
+        elif node.key == 'dcos_url':
+            dcos_url = node.values[0]
         else:
             collectd.warning('%s plugin: Unknown config key: %s.' %
                              (prefix, node.key))
@@ -136,12 +137,14 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
     # Relevant only when monitoring mesos hosting DC/OS in strict mode
     dcos_auth_token = ''
     dcos_auth_header = {}
-    if dcos_sfx_username and dcos_sfx_password:
-        scheme = 'https://'
-        dcos_auth_token = get_dcos_auth_token(dcos_sfx_username, dcos_sfx_password, host, master_url)
+    if dcos_sfx_username and dcos_sfx_password and scheme == 'https':
+        collectd.info("Configuring Mesos plugin to operate in DC/OS strict mode.")
+        dcos_url = dcos_url or 'https://leader.mesos/acs/api/v1/auth/login'
+        dcos_auth_token = get_dcos_auth_token(dcos_sfx_username, dcos_sfx_password, host, dcos_url, True)
         dcos_auth_header = {'Authorization': ('token=%s' % (str(dcos_auth_token)))}
 
     ssl_context = ssl.create_default_context(cafile=ca_file_path) if ca_file_path else ssl._create_unverified_context()
+    scheme += '://'
 
 
     global MESOS_VERSION
@@ -158,7 +161,7 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
                                                              'ssl_context': ssl_context,
                                                              'dcos_auth_header': dcos_auth_header})
             MESOS_VERSION = version.strip()
-    except AttributeError, e:
+    except Exception, e:
         collectd.error("Mesos version not obtained (%s)." % (e));
 
     if include_system_health:
@@ -190,31 +193,32 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
         'dcos_sfx_username': dcos_sfx_username,
         'dcos_sfx_password': dcos_sfx_password,
         'dcos_auth_token': dcos_auth_token,
-        'master_url': master_url,
+        'dcos_url': dcos_url,
         'dcos_auth_header': dcos_auth_header,
         'ca_file_path': ca_file_path,
         'ssl_context': ssl_context
     })
 
-def get_dcos_auth_token(uid, password, host, master_url):
+def get_dcos_auth_token(uid, password, host, dcos_url, verbose_log):
     try:
-        collectd.info('INFO: Getting DC/OS authentication token.')
+        log_verbose(verbose_log, 'INFO: Getting DC/OS authentication token.')
         headers = {"Content-Type":"application/json"}
         data = json.dumps({"uid":uid,"password":password})
-        if master_url:
-            url = ('%s/acs/api/v1/auth/login' % (master_url))
-        else:
-            url = ('https://%s/acs/api/v1/auth/login' % (host))
+        if not dcos_url:
+            raise KeyError("DC/OS url is not configured.")
+
         context=ssl._create_unverified_context()
         conf = {
             'dcos_sfx_username': uid,
             'dcos_sfx_password': password,
             'host': host,
-            'master_url': master_url
+            'dcos_url': dcos_url
         }
-        response = get_json(url, conf, context, headers, data)
+        response = get_json(dcos_url, conf, context, headers, data)
         return response['token']
     except (urllib2.HTTPError, urllib2.URLError), e:
+        collectd.error("ERROR: Getting DC/OS authentication token failed: (%s)." % (e))
+    except KeyError, e:
         collectd.error("ERROR: Getting DC/OS authentication token failed: (%s)." % (e))
 
 
@@ -235,7 +239,7 @@ def fetch_framework_stats(conf):
     result = get_json(conf['framework_url'], conf,
                       conf['ssl_context'], headers=conf['dcos_auth_header'])
     if result:
-        parse_stats(conf, result)
+        parse_framework_stats(conf, result)
 
 
 def fetch_task_stats(conf):
@@ -278,13 +282,21 @@ def make_api_call(url, conf, context, headers, data):
         return response
     except urllib2.HTTPError, e:
         try:
-            if e.code == 401:
-                collectd.info('INFO: Refreshing DC/OS authentication token.')
+            # 401 errors need to be logged as errors under the following circumstances:
+            # i.  Getting the Authentication token fails
+            # ii. Plugin is deployed in an environment it doesn't support
+            # 401 errors need to be suppressed with log_verbose if it is caused by a timed-out token
+            # one way to identify this is using the endpoint - /acs/api/v1/auth/login
+            if e.code == 401 and conf.get('dcos_url', None) and url.endswith("/acs/api/v1/auth/login"):
+                log_verbose(conf.get('Verbose', False), 'INFO: Refreshing DC/OS authentication token.')
                 refresh_dcos_auth_token(conf)
+            elif e.code == 307 and conf.get('dcos_url', None):
+                log_verbose(conf.get('Verbose', False),
+                            'INFO: Skipping API call to %s because this master is not the leader (%s).' % (url, e))
+            else:
+                collectd.error("ERROR: API call failed: (%s) %s" % (e, url))
         except:
             pass
-        else:
-            collectd.error("ERROR: API call failed: (%s) %s" % (e, url))
     except urllib2.URLError, e:
         collectd.error("ERROR: API call failed: (%s) %s" % (e, url))
 
@@ -292,7 +304,7 @@ def make_api_call(url, conf, context, headers, data):
 def refresh_dcos_auth_token(conf):
     try:
         token = get_dcos_auth_token(conf['dcos_sfx_username'], conf['dcos_sfx_password'],
-                                                      conf['host'], conf['master_url'])
+                                                      conf['host'], conf['dcos_url'], conf.get('Verbose', False))
         conf['dcos_auth_token'] = token
         conf['dcos_auth_header'] = {'Authorization': ('token=%s' % (str(token)))}
     except Exception, e:
@@ -443,7 +455,6 @@ def dispatch_stat(result, name, key, conf, dimensions=None):
     log_verbose(conf['verboseLogging'],
                 'Sending value[%s]: %s=%s for instance:%s' %
                 (estype, name, value, conf['instance']))
-
     val = collectd.Values(plugin='mesos')
     val.type = estype
     val.type_instance = name
