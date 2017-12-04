@@ -282,7 +282,13 @@ def make_api_call(url, conf, context, headers, data):
         return response
     except urllib2.HTTPError, e:
         try:
-            if e.code == 401 and conf.get('dcos_url', None):
+            # 401 errors need to be logged as errors under the following circumstances:
+            # i.  Getting the Authentication token fails
+            # ii. Plugin is deployed in an environment it doesn't support
+            # 401 errors need to be suppressed with log_verbose if it is caused by a timed-out token
+            # one way to identify this is using the header, which, as of now is used only by the
+            # method that makes requests for an authentication token
+            if e.code == 401 and conf.get('dcos_url', None) and headers == {"Content-Type":"application/json"}:
                 log_verbose(conf.get('Verbose', False), 'INFO: Refreshing DC/OS authentication token.')
                 refresh_dcos_auth_token(conf)
             elif e.code == 307 and conf.get('dcos_url', None):
