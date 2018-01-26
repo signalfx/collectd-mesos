@@ -56,19 +56,37 @@ def get_dimension_string(version):
 
 
 def lookup_framework_stat(stat, json, conf):
-    val = dig_it_up(json, get_framework_string(conf['version'])[stat].path)
+    try:
+        val = dig_it_up(json, get_framework_string(conf['version'])[stat].path)
+    except KeyError as e:
+        val = None
+        log_verbose(conf.get('verboseLogging', False),
+                    'Encountered key error {0} while looking up framework stat {1}'
+                    .format(e, stat))
+        val = None
     return val
 
 
 def lookup_task_stat(stat, json, conf):
-    val = dig_it_up(json, get_task_string(conf['version'])[stat].path)
+    try:
+        val = dig_it_up(json, get_task_string(conf['version'])[stat].path)
+    except KeyError as e:
+        log_verbose(conf.get('verboseLogging', False),
+                    'Encountered key error {0} while looking up task stat {1}'
+                    .format(e, stat))
+        val = None
     return val
 
 
 # FUNCTION: Collect stats from JSON result
 def lookup_stat(stat, json, conf):
-    val = dig_it_up(json, get_stats_string(conf['version'])[stat].path)
-
+    try:
+        val = dig_it_up(json, get_stats_string(conf['version'])[stat].path)
+    except KeyError as e:
+        log_verbose(conf.get('verboseLogging', False),
+                    'Encountered key error {0} while looking up stats {1}'
+                    .format(e, stat))
+        val = None
     # Check to make sure we have a valid result
     # dig_it_up returns None if no match found
     return val
@@ -102,7 +120,6 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
     dcos_sfx_password = None
     dcos_url = None
     ca_file_path = None
-
 
     for node in conf.children:
         if node.key == 'Host':
@@ -142,10 +159,14 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
         dcos_url = dcos_url or 'https://leader.mesos/acs/api/v1/auth/login'
         dcos_auth_token = get_dcos_auth_token(dcos_sfx_username, dcos_sfx_password, host, dcos_url, True)
         dcos_auth_header = {'Authorization': ('token=%s' % (str(dcos_auth_token)))}
-
-    ssl_context = ssl.create_default_context(cafile=ca_file_path) if ca_file_path else ssl._create_unverified_context()
+    try:
+        if ca_file_path:
+            ssl_context = ssl.create_default_context(cafile=ca_file_path)
+        else:
+            ssl_context = ssl._create_unverified_context()
+    except AttributeError:
+        ssl_context = None
     scheme += '://'
-
 
     global MESOS_VERSION
     binary = '%s/%s' % (path, 'mesos-master' if is_master else 'mesos-slave')
@@ -157,12 +178,12 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
             MESOS_VERSION = version.strip().split()[-1]
         else:
             version_api_url = scheme + host + ":" + str(port) + "/version"
-            version = get_version_from_api(version_api_url, {'dcos_auth_token' : dcos_auth_token,
+            version = get_version_from_api(version_api_url, {'dcos_auth_token': dcos_auth_token,
                                                              'ssl_context': ssl_context,
                                                              'dcos_auth_header': dcos_auth_header})
             MESOS_VERSION = version.strip()
     except Exception, e:
-        collectd.error("Mesos version not obtained (%s)." % (e));
+        collectd.error("Mesos version not obtained (%s)." % (e))
 
     if include_system_health:
         system_health_url = '{0}{1}:1050/system/health/v1'.format(scheme, host)
@@ -199,15 +220,18 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
         'ssl_context': ssl_context
     })
 
+
 def get_dcos_auth_token(uid, password, host, dcos_url, verbose_log):
     try:
         log_verbose(verbose_log, 'INFO: Getting DC/OS authentication token.')
-        headers = {"Content-Type":"application/json"}
-        data = json.dumps({"uid":uid,"password":password})
+        headers = {"Content-Type": "application/json"}
+        data = json.dumps({"uid": uid, "password": password})
         if not dcos_url:
             raise KeyError("DC/OS url is not configured.")
-
-        context=ssl._create_unverified_context()
+        try:
+            context = ssl._create_unverified_context()
+        except AttributeError:
+            context = None
         conf = {
             'dcos_sfx_username': uid,
             'dcos_sfx_password': password,
@@ -278,7 +302,10 @@ def get_json(url, conf, context, headers={}, data=''):
 def make_api_call(url, conf, context, headers, data):
     try:
         req = urllib2.Request(url, headers=headers, data=data)
-        response = urllib2.urlopen(req, context=context)
+        if context:
+            response = urllib2.urlopen(req, context=context)
+        else:
+            response = urllib2.urlopen(req)
         return response
     except urllib2.HTTPError, e:
         try:
@@ -304,7 +331,7 @@ def make_api_call(url, conf, context, headers, data):
 def refresh_dcos_auth_token(conf):
     try:
         token = get_dcos_auth_token(conf['dcos_sfx_username'], conf['dcos_sfx_password'],
-                                                      conf['host'], conf['dcos_url'], conf.get('Verbose', False))
+                                    conf['host'], conf['dcos_url'], conf.get('Verbose', False))
         conf['dcos_auth_token'] = token
         conf['dcos_auth_header'] = {'Authorization': ('token=%s' % (str(token)))}
     except Exception, e:
