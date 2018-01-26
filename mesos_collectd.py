@@ -103,7 +103,6 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
     dcos_url = None
     ca_file_path = None
 
-
     for node in conf.children:
         if node.key == 'Host':
             host = node.values[0]
@@ -144,13 +143,12 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
         dcos_auth_header = {'Authorization': ('token=%s' % (str(dcos_auth_token)))}
     try:
         if ca_file_path:
-            ssl_context = ssl.create_default_context(cafile=ca_file_path)  
+            ssl_context = ssl.create_default_context(cafile=ca_file_path)
         else:
             ssl_context = ssl._create_unverified_context()
     except AttributeError:
         ssl_context = None
     scheme += '://'
-
 
     global MESOS_VERSION
     binary = '%s/%s' % (path, 'mesos-master' if is_master else 'mesos-slave')
@@ -162,12 +160,12 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
             MESOS_VERSION = version.strip().split()[-1]
         else:
             version_api_url = scheme + host + ":" + str(port) + "/version"
-            version = get_version_from_api(version_api_url, {'dcos_auth_token' : dcos_auth_token,
+            version = get_version_from_api(version_api_url, {'dcos_auth_token': dcos_auth_token,
                                                              'ssl_context': ssl_context,
                                                              'dcos_auth_header': dcos_auth_header})
             MESOS_VERSION = version.strip()
     except Exception, e:
-        collectd.error("Mesos version not obtained (%s)." % (e));
+        collectd.error("Mesos version not obtained (%s)." % (e))
 
     if include_system_health:
         system_health_url = '{0}{1}:1050/system/health/v1'.format(scheme, host)
@@ -204,11 +202,12 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
         'ssl_context': ssl_context
     })
 
+
 def get_dcos_auth_token(uid, password, host, dcos_url, verbose_log):
     try:
         log_verbose(verbose_log, 'INFO: Getting DC/OS authentication token.')
-        headers = {"Content-Type":"application/json"}
-        data = json.dumps({"uid":uid,"password":password})
+        headers = {"Content-Type": "application/json"}
+        data = json.dumps({"uid": uid, "password": password})
         if not dcos_url:
             raise KeyError("DC/OS url is not configured.")
         try:
@@ -314,7 +313,7 @@ def make_api_call(url, conf, context, headers, data):
 def refresh_dcos_auth_token(conf):
     try:
         token = get_dcos_auth_token(conf['dcos_sfx_username'], conf['dcos_sfx_password'],
-                                                      conf['host'], conf['dcos_url'], conf.get('Verbose', False))
+                                    conf['host'], conf['dcos_url'], conf.get('Verbose', False))
         conf['dcos_auth_token'] = token
         conf['dcos_auth_header'] = {'Authorization': ('token=%s' % (str(token)))}
     except Exception, e:
