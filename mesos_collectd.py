@@ -56,19 +56,37 @@ def get_dimension_string(version):
 
 
 def lookup_framework_stat(stat, json, conf):
-    val = dig_it_up(json, get_framework_string(conf['version'])[stat].path)
+    try:
+        val = dig_it_up(json, get_framework_string(conf['version'])[stat].path)
+    except KeyError as e:
+        val = None
+        log_verbose(conf.get('verboseLogging', False),
+                    'Encountered key error {0} while looking up framework stat {1}'
+                    .format(e, stat))
+        val = None
     return val
 
 
 def lookup_task_stat(stat, json, conf):
-    val = dig_it_up(json, get_task_string(conf['version'])[stat].path)
+    try:
+        val = dig_it_up(json, get_task_string(conf['version'])[stat].path)
+    except KeyError as e:
+        log_verbose(conf.get('verboseLogging', False),
+                    'Encountered key error {0} while looking up task stat {1}'
+                    .format(e, stat))
+        val = None
     return val
 
 
 # FUNCTION: Collect stats from JSON result
 def lookup_stat(stat, json, conf):
-    val = dig_it_up(json, get_stats_string(conf['version'])[stat].path)
-
+    try:
+        val = dig_it_up(json, get_stats_string(conf['version'])[stat].path)
+    except KeyError as e:
+        log_verbose(conf.get('verboseLogging', False),
+                    'Encountered key error {0} while looking up stats {1}'
+                    .format(e, stat))
+        val = None
     # Check to make sure we have a valid result
     # dig_it_up returns None if no match found
     return val
