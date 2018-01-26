@@ -142,8 +142,13 @@ def configure_callback(conf, is_master, prefix, cluster, instance, path, host,
         dcos_url = dcos_url or 'https://leader.mesos/acs/api/v1/auth/login'
         dcos_auth_token = get_dcos_auth_token(dcos_sfx_username, dcos_sfx_password, host, dcos_url, True)
         dcos_auth_header = {'Authorization': ('token=%s' % (str(dcos_auth_token)))}
-
-    ssl_context = ssl.create_default_context(cafile=ca_file_path) if ca_file_path else ssl._create_unverified_context()
+    try:
+        if ca_file_path:
+            ssl_context = ssl.create_default_context(cafile=ca_file_path)  
+        else:
+            ssl_context = ssl._create_unverified_context()
+    except AttributeError:
+        ssl_context = None
     scheme += '://'
 
 
@@ -206,8 +211,10 @@ def get_dcos_auth_token(uid, password, host, dcos_url, verbose_log):
         data = json.dumps({"uid":uid,"password":password})
         if not dcos_url:
             raise KeyError("DC/OS url is not configured.")
-
-        context=ssl._create_unverified_context()
+        try:
+            context = ssl._create_unverified_context()
+        except AttributeError:
+            context = None
         conf = {
             'dcos_sfx_username': uid,
             'dcos_sfx_password': password,
@@ -278,7 +285,10 @@ def get_json(url, conf, context, headers={}, data=''):
 def make_api_call(url, conf, context, headers, data):
     try:
         req = urllib2.Request(url, headers=headers, data=data)
-        response = urllib2.urlopen(req, context=context)
+        if context:
+            response = urllib2.urlopen(req, context=context)
+        else:
+            response = urllib2.urlopen(req)
         return response
     except urllib2.HTTPError, e:
         try:
