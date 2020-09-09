@@ -34,3 +34,4 @@ Requirements
 ------------
  * collectd 4.9 or greater
  * Mesos 0.19.0 or greater
+ * Python 3+
