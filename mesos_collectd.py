@@ -312,7 +312,7 @@ def make_api_call(url, conf, context, headers, data):
             if e.code == 401 and conf.get("dcos_url", None) and url.endswith("/acs/api/v1/auth/login"):
                 log_verbose(conf.get("Verbose", False), "INFO: Refreshing DC/OS authentication token.")
                 refresh_dcos_auth_token(conf)
-            elif e.code == 307 and conf.get("dcos_url", None):
+            elif e.code == 307 and not conf.get("dcos_url", None):
                 log_verbose(
                     conf.get("Verbose", False),
                     "INFO: Skipping API call to %s because this master is not the leader (%s)." % (url, e),
